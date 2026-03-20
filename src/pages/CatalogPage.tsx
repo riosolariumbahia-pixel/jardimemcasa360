@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Sun, Droplets, Thermometer, Filter } from "lucide-react";
+import { Search, Sun, Droplets, Thermometer, Flower2, TreePine } from "lucide-react";
 
 interface Plant {
   name: string;
@@ -12,21 +12,66 @@ interface Plant {
 }
 
 const plants: Plant[] = [
-  { name: "Manjericão", emoji: "🌿", category: "Ervas", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Erva aromática essencial para a cozinha." },
-  { name: "Hortelã", emoji: "🌱", category: "Ervas", light: "Meia-sombra", water: "Frequente", difficulty: "Fácil", description: "Cresce rápido e é ótima para chás e sucos." },
-  { name: "Alecrim", emoji: "🌿", category: "Ervas", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Resistente e aromático, ideal para iniciantes." },
-  { name: "Tomate Cereja", emoji: "🍅", category: "Hortaliças", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Produz frutos doces e abundantes em vasos." },
-  { name: "Pimenta", emoji: "🌶️", category: "Hortaliças", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Ideal para vasos e jardins verticais." },
-  { name: "Alface", emoji: "🥬", category: "Hortaliças", light: "Meia-sombra", water: "Frequente", difficulty: "Fácil", description: "Cresce rápido e ocupa pouco espaço." },
-  { name: "Suculenta", emoji: "🪴", category: "Ornamentais", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Quase não precisa de cuidados." },
-  { name: "Samambaia", emoji: "🌿", category: "Ornamentais", light: "Sombra", water: "Frequente", difficulty: "Médio", description: "Perfeita para ambientes internos úmidos." },
-  { name: "Orquídea", emoji: "🌸", category: "Ornamentais", light: "Meia-sombra", water: "Pouca", difficulty: "Difícil", description: "Elegante e de floração longa." },
-  { name: "Cebolinha", emoji: "🌿", category: "Ervas", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Fácil de cultivar e ótima para temperar." },
-  { name: "Morango", emoji: "🍓", category: "Frutíferas", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Produz frutos em vasos e jardineiras." },
-  { name: "Lavanda", emoji: "💜", category: "Ornamentais", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Perfumada e repele insetos naturalmente." },
+  // ═══════════════════════════════════════
+  // 🌸 FLORES (30 plantas com flores)
+  // ═══════════════════════════════════════
+  { name: "Petúnia", emoji: "🌸", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Flores abundantes em cascata, perfeita para jardineiras suspensas. Floresce o ano todo em cores vibrantes." },
+  { name: "Gerânio", emoji: "🌺", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Clássica planta de janela europeia. Flores vermelhas, rosas ou brancas que duram meses." },
+  { name: "Begônia", emoji: "🌸", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Flores delicadas e folhagem decorativa. Ideal para varandas com luz filtrada." },
+  { name: "Violeta", emoji: "💜", category: "Flores", light: "Meia-sombra", water: "Moderada", difficulty: "Fácil", description: "Pequena e encantadora, floresce continuamente em vasinhos compactos na janela." },
+  { name: "Orquídea Phalaenopsis", emoji: "🌸", category: "Flores", light: "Meia-sombra", water: "Pouca", difficulty: "Médio", description: "A rainha das flores de interior. Floração elegante que dura até 3 meses." },
+  { name: "Kalanchoe", emoji: "🌼", category: "Flores", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Suculenta com flores vibrantes em tons de vermelho, amarelo, laranja e rosa." },
+  { name: "Lírio-da-paz", emoji: "🤍", category: "Flores", light: "Sombra", water: "Regular", difficulty: "Fácil", description: "Flores brancas elegantes e purifica o ar. Perfeita para ambientes internos com pouca luz." },
+  { name: "Antúrio", emoji: "❤️", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Médio", description: "Flores cerosas em vermelho intenso. Planta tropical que adora umidade." },
+  { name: "Crisântemo", emoji: "🌼", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Flores pompom em diversas cores. Floração generosa no outono." },
+  { name: "Lavanda", emoji: "💜", category: "Flores", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Flores lilases perfumadas que acalmam e repelem insetos naturalmente." },
+  { name: "Rosa Miniatura", emoji: "🌹", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Rosas em miniatura perfeitas para vasos. Floração contínua com poda adequada." },
+  { name: "Margarida", emoji: "🌼", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Alegre e descomplicada. Flores brancas com centro amarelo que iluminam qualquer espaço." },
+  { name: "Prímula", emoji: "🌸", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Flores multicoloridas que florescem no fim do inverno, trazendo cor precoce." },
+  { name: "Azaleia Anã", emoji: "🌺", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Médio", description: "Variedade compacta com flores exuberantes em tons de rosa e vermelho." },
+  { name: "Calanchoê Dobrado", emoji: "🌺", category: "Flores", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Versão com flores dobradas tipo mini-rosa. Duradoura e de pouca manutenção." },
+  { name: "Impatiens", emoji: "🌸", category: "Flores", light: "Sombra", water: "Frequente", difficulty: "Fácil", description: "Conhecida como maria-sem-vergonha. Flores coloridas abundantes mesmo na sombra." },
+  { name: "Boca-de-leão", emoji: "🌷", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Flores verticais em formato divertido. Ótima para jardineiras de janela." },
+  { name: "Amor-perfeito", emoji: "💜", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Flores com 'rostinhos' únicos em combinações de cores surpreendentes." },
+  { name: "Gazânia", emoji: "🌼", category: "Flores", light: "Sol pleno", water: "Pouca", difficulty: "Fácil", description: "Flores que abrem ao sol como pequenos sóis. Resistente à seca." },
+  { name: "Hibisco Compacto", emoji: "🌺", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Flores tropicais grandes e vistosas. Variedade anã ideal para vasos." },
+  { name: "Ciclâmen", emoji: "🌸", category: "Flores", light: "Meia-sombra", water: "Moderada", difficulty: "Médio", description: "Flores elegantes que parecem borboletas. Floresce no inverno quando tudo está cinza." },
+  { name: "Gerbera", emoji: "🌼", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Margaridas gigantes em cores vibrantes. Uma das flores mais alegres para vasos." },
+  { name: "Torênia", emoji: "💙", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Flores bicolores em tons de azul e roxo. Excelente para locais sombreados." },
+  { name: "Cravo-de-defunto", emoji: "🧡", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Fácil", description: "Flores alaranjadas aromáticas que repelem pragas da horta naturalmente." },
+  { name: "Ixora Anã", emoji: "🌺", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Buquês naturais de flores vermelhas ou amarelas que atraem beija-flores." },
+  { name: "Manacá-de-cheiro", emoji: "🤍", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Flores que mudam de cor: branco, lilás e roxo na mesma planta. Perfumadíssima." },
+  { name: "Jasmim-do-cabo", emoji: "🤍", category: "Flores", light: "Meia-sombra", water: "Regular", difficulty: "Médio", description: "Flores brancas com perfume intenso e inebriante. Folhas verde-escuras brilhantes." },
+  { name: "Flor-de-maio", emoji: "🌺", category: "Flores", light: "Meia-sombra", water: "Pouca", difficulty: "Fácil", description: "Cacto pendente com flores espetaculares no final do outono. Zero complicação." },
+  { name: "Cravina", emoji: "🌸", category: "Flores", light: "Sol pleno", water: "Moderada", difficulty: "Fácil", description: "Flores pequenas e perfumadas com pétalas recortadas em tons de rosa e branco." },
+  { name: "Dália Anã", emoji: "🌸", category: "Flores", light: "Sol pleno", water: "Regular", difficulty: "Médio", description: "Flores pompom impressionantes em tamanho compacto para vasos e jardineiras." },
+
+  // ═══════════════════════════════════════
+  // 🌿 FOLHAGENS (20 plantas de folhagem)
+  // ═══════════════════════════════════════
+  { name: "Samambaia Boston", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Frequente", difficulty: "Médio", description: "A rainha das samambaias de interior. Folhas arqueadas e exuberantes que purificam o ar." },
+  { name: "Jiboia", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Pouca", difficulty: "Fácil", description: "Trepadeira indestrutível com folhas variegadas. Cresce em qualquer canto, até no banheiro." },
+  { name: "Costela-de-adão", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Folhas recortadas icônicas que transformam qualquer ambiente em selva urbana." },
+  { name: "Espada-de-são-jorge", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Pouca", difficulty: "Fácil", description: "Praticamente imortal. Folhas verticais que purificam o ar e sobrevivem ao esquecimento." },
+  { name: "Peperômia", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Moderada", difficulty: "Fácil", description: "Folhas carnudas e compactas em formatos variados. Perfeita para mesas e estantes." },
+  { name: "Filodendro", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Folhas grandes e brilhantes em formato de coração. Cresce generosamente em vasos." },
+  { name: "Zamioculca", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Pouca", difficulty: "Fácil", description: "Folhas brilhantes como cera. Sobrevive semanas sem água — perfeita para quem viaja." },
+  { name: "Avenca", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Frequente", difficulty: "Difícil", description: "Folhas delicadíssimas e etéreas. Exigente mas recompensa com beleza incomparável." },
+  { name: "Maranta", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Médio", description: "Folhas pintadas com padrões geométricos fascinantes. Fecha as folhas à noite como se rezasse." },
+  { name: "Calathea", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Regular", difficulty: "Médio", description: "Folhas com desenhos que parecem pintados à mão. Cada espécie é uma obra de arte." },
+  { name: "Aspargo-pluma", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Folhagem fina e plumosa que cai em cascata. Linda em vasos suspensos." },
+  { name: "Hera Inglesa", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Trepadeira clássica com folhas elegantes. Perfeita para prateleiras e macramês." },
+  { name: "Singônio", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Folhas em forma de flecha em tons de verde, rosa ou branco. Versátil e fácil." },
+  { name: "Clorofito", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Fácil", description: "Planta-aranha com folhas listradas. Produz mudas pendentes que parecem filhotes." },
+  { name: "Dracena Marginata", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Pouca", difficulty: "Fácil", description: "Tronco esguio com tufo de folhas no topo. Visual escultural e pouca manutenção." },
+  { name: "Ficus Lyrata", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Regular", difficulty: "Médio", description: "Folhas gigantes em forma de violino. A planta mais desejada para decoração." },
+  { name: "Renda Portuguesa", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Frequente", difficulty: "Médio", description: "Samambaia com folhas finamente recortadas como renda. Elegância pura." },
+  { name: "Calateia Orbifolia", emoji: "🌿", category: "Folhagens", light: "Sombra", water: "Regular", difficulty: "Médio", description: "Folhas redondas enormes com listras prateadas. Impacto visual impressionante." },
+  { name: "Pilea Peperomioides", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Moderada", difficulty: "Fácil", description: "Planta-moeda-chinesa com folhas redondas adoráveis. Produz muitos filhotes para presentear." },
+  { name: "Chifre-de-veado", emoji: "🌿", category: "Folhagens", light: "Meia-sombra", water: "Moderada", difficulty: "Médio", description: "Samambaia epífita com folhas que parecem chifres. Fixada na parede vira obra de arte viva." },
 ];
 
-const categories = ["Todas", "Ervas", "Hortaliças", "Ornamentais", "Frutíferas"];
+const categories = ["Todas", "Flores", "Folhagens"];
 
 export default function CatalogPage() {
   const [search, setSearch] = useState("");
@@ -34,10 +79,15 @@ export default function CatalogPage() {
   const [selected, setSelected] = useState<Plant | null>(null);
 
   const filtered = plants.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description.toLowerCase().includes(search.toLowerCase());
     const matchCat = category === "Todas" || p.category === category;
     return matchSearch && matchCat;
   });
+
+  const flowerCount = plants.filter((p) => p.category === "Flores").length;
+  const foliageCount = plants.filter((p) => p.category === "Folhagens").length;
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
@@ -46,17 +96,17 @@ export default function CatalogPage() {
           Catálogo de Plantas 🌱
         </h2>
         <p className="text-sm text-muted-foreground">
-          Descubra plantas ideais para espaços pequenos
+          {flowerCount} flores para jarros e jardineiras · {foliageCount} folhagens para adornar seu lar
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Category tabs */}
       <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up animate-delay-100">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Buscar planta..."
+            placeholder="Buscar por nome ou descrição..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 bg-card border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
@@ -67,20 +117,30 @@ export default function CatalogPage() {
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95 flex items-center gap-1.5
                 ${category === cat
                   ? "bg-primary text-primary-foreground"
                   : "bg-card border border-border text-muted-foreground hover:bg-muted"
                 }`}
             >
+              {cat === "Flores" && <Flower2 className="w-3.5 h-3.5" />}
+              {cat === "Folhagens" && <TreePine className="w-3.5 h-3.5" />}
               {cat}
+              <span className="ml-1 opacity-70">
+                ({cat === "Todas" ? plants.length : cat === "Flores" ? flowerCount : foliageCount})
+              </span>
             </button>
           ))}
         </div>
       </div>
 
+      {/* Results count */}
+      <p className="text-xs text-muted-foreground animate-fade-in-up animate-delay-100">
+        {filtered.length} {filtered.length === 1 ? "planta encontrada" : "plantas encontradas"}
+      </p>
+
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-in-up animate-delay-200">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 animate-fade-in-up animate-delay-200">
         {filtered.map((plant) => (
           <div
             key={plant.name}
@@ -92,50 +152,55 @@ export default function CatalogPage() {
               }`}
           >
             <div className="text-3xl mb-2">{plant.emoji}</div>
-            <p className="font-semibold text-sm text-foreground">{plant.name}</p>
-            <p className="text-xs text-muted-foreground">{plant.category}</p>
-            <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold
-              ${plant.difficulty === "Fácil" ? "bg-garden-green-pale text-garden-green-dark"
-                : plant.difficulty === "Médio" ? "bg-amber-100 text-amber-700"
-                  : "bg-red-100 text-red-700"}`}
-            >
-              {plant.difficulty}
-            </span>
+            <p className="font-semibold text-sm text-foreground leading-tight">{plant.name}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{plant.category}</p>
+            <div className="flex items-center justify-center gap-1 mt-2">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold
+                ${plant.difficulty === "Fácil" ? "bg-garden-green-pale text-garden-green-dark"
+                  : plant.difficulty === "Médio" ? "bg-amber-100 text-amber-700"
+                    : "bg-red-100 text-red-700"}`}
+              >
+                {plant.difficulty}
+              </span>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Detail panel */}
       {selected && (
-        <div className="garden-card p-6 animate-fade-in-up">
+        <div className="garden-card p-6 animate-fade-in-up sticky bottom-4">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <span className="text-4xl">{selected.emoji}</span>
               <div>
                 <h3 className="font-heading text-xl font-bold text-foreground">{selected.name}</h3>
-                <p className="text-xs text-muted-foreground">{selected.category}</p>
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold mt-1
+                  ${selected.category === "Flores" ? "bg-pink-100 text-pink-700" : "bg-garden-green-pale text-garden-green-dark"}`}>
+                  {selected.category}
+                </span>
               </div>
             </div>
             <button
-              onClick={() => setSelected(null)}
-              className="text-muted-foreground hover:text-foreground text-sm"
+              onClick={(e) => { e.stopPropagation(); setSelected(null); }}
+              className="text-muted-foreground hover:text-foreground text-sm p-1"
             >
               ✕
             </button>
           </div>
-          <p className="text-sm text-foreground mb-4">{selected.description}</p>
+          <p className="text-sm text-foreground mb-4 leading-relaxed">{selected.description}</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="flex items-center gap-2 text-sm">
-              <Sun className="w-4 h-4 text-amber-500" />
-              <span className="text-muted-foreground">{selected.light}</span>
+              <Sun className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="text-muted-foreground text-xs">{selected.light}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Droplets className="w-4 h-4 text-blue-500" />
-              <span className="text-muted-foreground">{selected.water}</span>
+              <Droplets className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="text-muted-foreground text-xs">{selected.water}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Thermometer className="w-4 h-4 text-red-400" />
-              <span className="text-muted-foreground">{selected.difficulty}</span>
+              <Thermometer className="w-4 h-4 text-red-400 shrink-0" />
+              <span className="text-muted-foreground text-xs">{selected.difficulty}</span>
             </div>
           </div>
           <button className="mt-4 bg-primary text-primary-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200">
