@@ -2,17 +2,19 @@ import { Droplets, Sun, Leaf, TrendingUp, Plus, Sprout } from "lucide-react";
 import heroImage from "@/assets/hero-garden.jpg";
 
 const quickStats = [
-  { label: "Plantas ativas", value: "12", icon: Leaf, color: "bg-garden-green-pale text-garden-green-dark" },
-  { label: "Regar hoje", value: "3", icon: Droplets, color: "bg-blue-100 text-blue-700" },
+  { label: "Flores no catálogo", value: "30", icon: Leaf, color: "bg-pink-100 text-pink-700" },
+  { label: "Folhagens", value: "20", icon: Droplets, color: "bg-garden-green-pale text-garden-green-dark" },
   { label: "Horas de sol", value: "6h", icon: Sun, color: "bg-amber-100 text-amber-700" },
   { label: "Saúde geral", value: "87%", icon: TrendingUp, color: "bg-garden-green-pale text-garden-green-dark" },
 ];
 
 const recentPlants = [
-  { name: "Manjericão", status: "Saudável", emoji: "🌿", health: 92 },
-  { name: "Tomate Cereja", status: "Precisa de água", emoji: "🍅", health: 65 },
-  { name: "Hortelã", status: "Saudável", emoji: "🌱", health: 88 },
-  { name: "Alecrim", status: "Saudável", emoji: "🌿", health: 95 },
+  { name: "Petúnia", status: "Florescendo", emoji: "🌸", health: 95 },
+  { name: "Samambaia Boston", status: "Saudável", emoji: "🌿", health: 88 },
+  { name: "Orquídea", status: "Precisa de água", emoji: "🌸", health: 62 },
+  { name: "Jiboia", status: "Saudável", emoji: "🌿", health: 93 },
+  { name: "Violeta", status: "Florescendo", emoji: "💜", health: 90 },
+  { name: "Costela-de-adão", status: "Saudável", emoji: "🌿", health: 85 },
 ];
 
 const tips = [
