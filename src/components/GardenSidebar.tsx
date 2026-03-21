@@ -1,4 +1,4 @@
-import { Home, Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout } from "lucide-react";
+import { Home, Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 
@@ -6,6 +6,7 @@ const navItems = [
   { title: "Início", url: "/", icon: Home },
   { title: "Catálogo de Plantas", url: "/catalogo", icon: Leaf },
   { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
+  { title: "Adubação", url: "/adubacao", icon: Beaker },
   { title: "Calendário", url: "/calendario", icon: Calendar },
   { title: "Diagnóstico", url: "/diagnostico", icon: Stethoscope },
   { title: "Planejamento", url: "/planejamento", icon: ClipboardList },
