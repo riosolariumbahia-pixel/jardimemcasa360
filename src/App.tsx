@@ -7,6 +7,7 @@ import DiagnosisPage from "./pages/DiagnosisPage";
 import PlanningPage from "./pages/PlanningPage";
 import TipsPage from "./pages/TipsPage";
 import EbookPage from "./pages/EbookPage";
+import FertilizationPage from "./pages/FertilizationPage";
 import NotFound from "./pages/NotFound";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<HomePage />} />
             <Route path="/catalogo" element={<CatalogPage />} />
             <Route path="/meu-jardim" element={<MyGardenPage />} />
+            <Route path="/adubacao" element={<FertilizationPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/diagnostico" element={<DiagnosisPage />} />
             <Route path="/planejamento" element={<PlanningPage />} />
