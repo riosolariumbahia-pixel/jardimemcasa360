@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sun, MapPin, Check, Plus, Trash2, ArrowUpDown, Flower2, Calculator } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface GardenLocation {
   id: number;
@@ -72,10 +73,11 @@ const lightRecommendations: Record<string, { name: string; emoji: string; reason
 };
 
 export default function PlanningPage() {
-  const [locations, setLocations] = useState<GardenLocation[]>([]);
+  const [locations, setLocations] = useLocalStorage<GardenLocation[]>("garden-planning", []);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  // Form state for new/edit location
+  // Form state
   const [formName, setFormName] = useState("");
   const [formSpace, setFormSpace] = useState<GardenLocation["type"]>("varanda");
   const [formLight, setFormLight] = useState<GardenLocation["light"]>("full");
@@ -118,8 +120,8 @@ export default function PlanningPage() {
     const h = parseFloat(formWallHeight);
     const w = parseFloat(formWallWidth);
     if (!h || !w || h <= 0 || w <= 0) return 0;
-    const rows = Math.floor(h / 0.3); // 30cm spacing between rows
-    const cols = Math.floor(w / 0.25); // 25cm spacing between columns
+    const rows = Math.floor(h / 0.3);
+    const cols = Math.floor(w / 0.25);
     return Math.max(rows * cols, 1);
   };
 
@@ -137,9 +139,9 @@ export default function PlanningPage() {
     };
 
     if (editingId) {
-      setLocations(locations.map((l) => l.id === editingId ? loc : l));
+      setLocations((prev) => prev.map((l) => l.id === editingId ? loc : l));
     } else {
-      setLocations([...locations, loc]);
+      setLocations((prev) => [...prev, loc]);
     }
     resetForm();
     setShowForm(false);
@@ -158,7 +160,8 @@ export default function PlanningPage() {
   };
 
   const deleteLocation = (id: number) => {
-    setLocations(locations.filter((l) => l.id !== id));
+    setLocations((prev) => prev.filter((l) => l.id !== id));
+    setConfirmDeleteId(null);
   };
 
   const totalContainers = locations.reduce(
@@ -218,7 +221,15 @@ export default function PlanningPage() {
               </h3>
               <div className="flex gap-2">
                 <button onClick={() => editLocation(loc)} className="text-xs text-primary hover:underline">Editar</button>
-                <button onClick={() => deleteLocation(loc.id)} className="text-xs text-red-500 hover:underline">Excluir</button>
+                {confirmDeleteId === loc.id ? (
+                  <div className="flex items-center gap-2 p-1 bg-red-50 rounded-lg">
+                    <span className="text-xs text-red-600 font-semibold">Excluir?</span>
+                    <button onClick={() => deleteLocation(loc.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-semibold">Sim</button>
+                    <button onClick={() => setConfirmDeleteId(null)} className="text-xs bg-muted px-2 py-0.5 rounded font-semibold">Não</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDeleteId(loc.id)} className="text-xs text-red-500 hover:underline">Excluir</button>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
