@@ -38,8 +38,12 @@ const activityLabel = { water: "Regar", prune: "Podar", fertilize: "Adubar" };
 
 export default function CalendarPage() {
   const now = new Date();
+  const currentYear = now.getFullYear();
+  const minYear = currentYear;
+  const maxYear = currentYear + 10;
+
   const [month, setMonth] = useState(now.getMonth());
-  const [year, setYear] = useState(now.getFullYear());
+  const [year, setYear] = useState(currentYear);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const firstDay = new Date(year, month, 1).getDay();
@@ -47,35 +51,76 @@ export default function CalendarPage() {
   const today = now.getDate();
   const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
 
+  const canGoPrev = year > minYear || (year === minYear && month > 0);
+  const canGoNext = year < maxYear || (year === maxYear && month < 11);
+
   const prevMonth = () => {
+    if (!canGoPrev) return;
     if (month === 0) { setMonth(11); setYear(year - 1); }
     else setMonth(month - 1);
+    setSelectedDay(null);
   };
   const nextMonth = () => {
+    if (!canGoNext) return;
     if (month === 11) { setMonth(0); setYear(year + 1); }
     else setMonth(month + 1);
+    setSelectedDay(null);
+  };
+
+  const goToYear = (y: number) => {
+    setYear(y);
+    setSelectedDay(null);
   };
 
   const dayActivities = (day: number) => sampleActivities.filter((a) => a.day === day);
   const selectedActivities = selectedDay ? dayActivities(selectedDay) : [];
 
+  // Generate year options
+  const yearOptions: number[] = [];
+  for (let y = minYear; y <= maxYear; y++) yearOptions.push(y);
+
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
       <div className="animate-fade-in-up">
         <h2 className="font-heading text-2xl font-bold text-foreground">Calendário 📅</h2>
-        <p className="text-sm text-muted-foreground">Planeje os cuidados com suas plantas</p>
+        <p className="text-sm text-muted-foreground">Planeje os cuidados com suas plantas — {minYear} a {maxYear}</p>
       </div>
 
       <div className="garden-card p-6 animate-fade-in-up animate-delay-100">
+        {/* Year selector */}
+        <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
+          {yearOptions.map((y) => (
+            <button
+              key={y}
+              onClick={() => goToYear(y)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
+                y === year
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-border"
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+
         {/* Month nav */}
         <div className="flex items-center justify-between mb-6">
-          <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all">
+          <button
+            onClick={prevMonth}
+            disabled={!canGoPrev}
+            className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <h3 className="font-heading text-lg font-semibold text-foreground">
             {months[month]} {year}
           </h3>
-          <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all">
+          <button
+            onClick={nextMonth}
+            disabled={!canGoNext}
+            className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>

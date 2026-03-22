@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Droplets, Sun, Trash2, Plus, Heart, Leaf, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
 import { plants as catalogPlants, Plant as CatalogPlant } from "./CatalogPage";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface GardenPlant {
   id: number;
@@ -15,8 +16,10 @@ interface GardenPlant {
   needsFertilizer: boolean;
 }
 
+export type { GardenPlant };
+
 export default function MyGardenPage() {
-  const [plants, setPlants] = useState<GardenPlant[]>([]);
+  const [plants, setPlants] = useLocalStorage<GardenPlant[]>("garden-plants", []);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
@@ -64,7 +67,6 @@ export default function MyGardenPage() {
 
   const plantsNeedingFertilizer = plants.filter((p) => p.needsFertilizer).length;
 
-  // Calculate total fertilizer needed
   const totalFertilizerKg = plants.length > 0
     ? Math.max(0.5, Math.ceil(plants.length * 0.15 * 10) / 10)
     : 0;
