@@ -10,10 +10,13 @@ interface GardenPlant {
   health: number;
   lastWatered: string;
   lastFertilized: string;
+  lastPruned: string;
   location: string;
   fertilizerFrequency: string;
   fertilizerAmount: string;
   needsFertilizer: boolean;
+  needsWater: boolean;
+  needsPruning: boolean;
 }
 
 export type { GardenPlant };
