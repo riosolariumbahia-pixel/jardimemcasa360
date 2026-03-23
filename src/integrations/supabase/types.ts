@@ -14,7 +14,199 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      garden_plants: {
+        Row: {
+          category: string | null
+          created_at: string
+          difficulty: string | null
+          emoji: string | null
+          fertilizer_amount: string | null
+          fertilizer_frequency: string | null
+          garden_id: string | null
+          health: number | null
+          id: string
+          last_fertilized: string | null
+          last_pruned: string | null
+          last_watered: string | null
+          light: string | null
+          name: string
+          needs_fertilizer: boolean | null
+          needs_pruning: boolean | null
+          needs_water: boolean | null
+          updated_at: string
+          user_id: string
+          water_frequency: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          difficulty?: string | null
+          emoji?: string | null
+          fertilizer_amount?: string | null
+          fertilizer_frequency?: string | null
+          garden_id?: string | null
+          health?: number | null
+          id?: string
+          last_fertilized?: string | null
+          last_pruned?: string | null
+          last_watered?: string | null
+          light?: string | null
+          name: string
+          needs_fertilizer?: boolean | null
+          needs_pruning?: boolean | null
+          needs_water?: boolean | null
+          updated_at?: string
+          user_id: string
+          water_frequency?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          difficulty?: string | null
+          emoji?: string | null
+          fertilizer_amount?: string | null
+          fertilizer_frequency?: string | null
+          garden_id?: string | null
+          health?: number | null
+          id?: string
+          last_fertilized?: string | null
+          last_pruned?: string | null
+          last_watered?: string | null
+          light?: string | null
+          name?: string
+          needs_fertilizer?: boolean | null
+          needs_pruning?: boolean | null
+          needs_water?: boolean | null
+          updated_at?: string
+          user_id?: string
+          water_frequency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "garden_plants_garden_id_fkey"
+            columns: ["garden_id"]
+            isOneToOne: false
+            referencedRelation: "gardens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gardens: {
+        Row: {
+          containers: Json | null
+          created_at: string
+          garden_type: string | null
+          id: string
+          light: string | null
+          location: string | null
+          name: string
+          updated_at: string
+          user_id: string
+          wall_height: number | null
+          wall_width: number | null
+        }
+        Insert: {
+          containers?: Json | null
+          created_at?: string
+          garden_type?: string | null
+          id?: string
+          light?: string | null
+          location?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+          wall_height?: number | null
+          wall_width?: number | null
+        }
+        Update: {
+          containers?: Json | null
+          created_at?: string
+          garden_type?: string | null
+          id?: string
+          light?: string | null
+          location?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+          wall_height?: number | null
+          wall_width?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          plant_id: string | null
+          scheduled_date: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          plant_id?: string | null
+          scheduled_date: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          plant_id?: string | null
+          scheduled_date?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "garden_plants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
