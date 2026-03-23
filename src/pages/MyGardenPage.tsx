@@ -220,7 +220,12 @@ export default function MyGardenPage() {
                   </span>
                   {plant.needsFertilizer && (
                     <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Precisa adubar
+                      <AlertTriangle className="w-3 h-3" /> Adubar
+                    </span>
+                  )}
+                  {plant.needsWater && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <Droplets className="w-3 h-3" /> Regar
                     </span>
                   )}
                 </div>
@@ -235,33 +240,51 @@ export default function MyGardenPage() {
                     {plant.health}%
                   </span>
                 </div>
-                <div className="flex gap-4 mt-1">
+                <div className="flex gap-3 mt-1 flex-wrap">
                   <p className="text-xs text-muted-foreground">💧 Rega: {plant.lastWatered}</p>
                   <p className="text-xs text-muted-foreground">🌱 Adubo: {plant.lastFertilized}</p>
+                  <p className="text-xs text-muted-foreground">✂️ Poda: {plant.lastPruned || "Nunca"}</p>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => waterPlant(plant.id)}
-                  className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95 transition-all duration-200"
-                  title="Regar"
-                >
-                  <Droplets className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => fertilizePlant(plant.id)}
-                  className="p-2 rounded-lg bg-garden-green-pale text-primary hover:bg-garden-green-mist active:scale-95 transition-all duration-200"
-                  title="Adubar com Adubei"
-                >
-                  <Leaf className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => removePlant(plant.id)}
-                  className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 active:scale-95 transition-all duration-200"
-                  title="Remover"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => waterPlant(plant.id)}
+                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95 transition-all duration-200"
+                    title="Regar"
+                  >
+                    <Droplets className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => fertilizePlant(plant.id)}
+                    className="p-2 rounded-lg bg-garden-green-pale text-primary hover:bg-garden-green-mist active:scale-95 transition-all duration-200"
+                    title="Adubar com Adubei"
+                  >
+                    <Leaf className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => prunePlant(plant.id)}
+                    className="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all duration-200"
+                    title="Podar"
+                  >
+                    <Scissors className="w-4 h-4" />
+                  </button>
+                </div>
+                {confirmDeleteId === plant.id ? (
+                  <div className="flex items-center gap-1 p-1 bg-red-50 rounded-lg">
+                    <span className="text-[10px] text-red-600 font-semibold">Excluir?</span>
+                    <button onClick={() => removePlant(plant.id)} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-semibold">Sim</button>
+                    <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] bg-muted px-2 py-0.5 rounded font-semibold">Não</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(plant.id)}
+                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 active:scale-95 transition-all duration-200 self-end"
+                    title="Remover do jardim"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
