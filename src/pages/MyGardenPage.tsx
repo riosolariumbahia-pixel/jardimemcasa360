@@ -51,7 +51,7 @@ export default function MyGardenPage() {
   const waterPlant = (id: number) => {
     setPlants((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, health: Math.min(100, p.health + 10), lastWatered: "Agora" } : p
+        p.id === id ? { ...p, health: Math.min(100, p.health + 10), lastWatered: "Agora", needsWater: false } : p
       )
     );
   };
@@ -60,6 +60,14 @@ export default function MyGardenPage() {
     setPlants((prev) =>
       prev.map((p) =>
         p.id === id ? { ...p, health: Math.min(100, p.health + 5), lastFertilized: "Hoje", needsFertilizer: false } : p
+      )
+    );
+  };
+
+  const prunePlant = (id: number) => {
+    setPlants((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, health: Math.min(100, p.health + 3), lastPruned: "Hoje", needsPruning: false } : p
       )
     );
   };
