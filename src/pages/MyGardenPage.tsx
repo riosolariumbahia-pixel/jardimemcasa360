@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Droplets, Sun, Trash2, Plus, Heart, Leaf, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Droplets, Sun, Trash2, Plus, Heart, Leaf, X, Search, ShoppingCart, AlertTriangle, Scissors } from "lucide-react";
 import { plants as catalogPlants, Plant as CatalogPlant } from "./CatalogPage";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
