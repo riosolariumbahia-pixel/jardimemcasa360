@@ -26,6 +26,7 @@ export default function MyGardenPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const addPlant = (catalogPlant: CatalogPlant) => {
     const newPlant: GardenPlant = {
