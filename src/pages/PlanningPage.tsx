@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Sun, MapPin, Check, Plus, Trash2, ArrowUpDown, Flower2, Calculator } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useGardens } from "@/hooks/useGardens";
 
 interface GardenLocation {
   id: number;
