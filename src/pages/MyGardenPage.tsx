@@ -35,10 +35,13 @@ export default function MyGardenPage() {
       health: 80,
       lastWatered: "Nunca",
       lastFertilized: "Nunca",
+      lastPruned: "Nunca",
       location: "Não definido",
       fertilizerFrequency: catalogPlant.fertilizerFrequency,
       fertilizerAmount: catalogPlant.fertilizerAmount,
       needsFertilizer: true,
+      needsWater: true,
+      needsPruning: false,
     };
     setPlants((prev) => [...prev, newPlant]);
     setShowAddModal(false);
