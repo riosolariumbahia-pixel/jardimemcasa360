@@ -1,17 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Sun, MapPin, Check, Plus, Trash2, ArrowUpDown, Flower2, Calculator } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-
-interface GardenLocation {
-  id: number;
-  name: string;
-  type: "varanda" | "janela" | "cozinha" | "sala" | "sacada" | "corredor" | "banheiro" | "quarto";
-  light: "full" | "partial" | "shade";
-  gardenType: "chao" | "vertical" | "suspenso";
-  containers: ContainerItem[];
-  wallHeight?: number;
-  wallWidth?: number;
-}
+import { useGardens, type GardenDB } from "@/hooks/useGardens";
 
 interface ContainerItem {
   id: number;
@@ -20,35 +9,35 @@ interface ContainerItem {
 }
 
 const spaceOptions = [
-  { label: "Varanda", value: "varanda" as const, icon: "🏠" },
-  { label: "Janela", value: "janela" as const, icon: "🪟" },
-  { label: "Cozinha", value: "cozinha" as const, icon: "🍳" },
-  { label: "Sala", value: "sala" as const, icon: "🛋️" },
-  { label: "Sacada", value: "sacada" as const, icon: "🌤️" },
-  { label: "Corredor", value: "corredor" as const, icon: "🚪" },
-  { label: "Banheiro", value: "banheiro" as const, icon: "🚿" },
-  { label: "Quarto", value: "quarto" as const, icon: "🛏️" },
+  { label: "Varanda", value: "varanda", icon: "🏠" },
+  { label: "Janela", value: "janela", icon: "🪟" },
+  { label: "Cozinha", value: "cozinha", icon: "🍳" },
+  { label: "Sala", value: "sala", icon: "🛋️" },
+  { label: "Sacada", value: "sacada", icon: "🌤️" },
+  { label: "Corredor", value: "corredor", icon: "🚪" },
+  { label: "Banheiro", value: "banheiro", icon: "🚿" },
+  { label: "Quarto", value: "quarto", icon: "🛏️" },
 ];
 
 const lightOptions = [
-  { label: "Sol pleno (6h+)", value: "full" as const },
-  { label: "Meia-sombra (3-6h)", value: "partial" as const },
-  { label: "Sombra (< 3h)", value: "shade" as const },
+  { label: "Sol pleno (6h+)", value: "full" },
+  { label: "Meia-sombra (3-6h)", value: "partial" },
+  { label: "Sombra (< 3h)", value: "shade" },
 ];
 
 const gardenTypeOptions = [
-  { label: "No chão / Mesa", value: "chao" as const, icon: "🪴", desc: "Vasos e jardineiras no chão ou sobre móveis" },
-  { label: "Jardim vertical", value: "vertical" as const, icon: "🧱", desc: "Vasos fixados na parede em prateleiras" },
-  { label: "Suspenso", value: "suspenso" as const, icon: "🪝", desc: "Vasos suspensos no teto ou suporte" },
+  { label: "No chão / Mesa", value: "chao", icon: "🪴", desc: "Vasos e jardineiras no chão ou sobre móveis" },
+  { label: "Jardim vertical", value: "vertical", icon: "🧱", desc: "Vasos fixados na parede em prateleiras" },
+  { label: "Suspenso", value: "suspenso", icon: "🪝", desc: "Vasos suspensos no teto ou suporte" },
 ];
 
 const containerOptions = [
-  { label: "Vaso pequeno (15cm)", value: "vaso-p" as const, icon: "🪴" },
-  { label: "Vaso médio (25cm)", value: "vaso-m" as const, icon: "🪴" },
-  { label: "Vaso grande (40cm)", value: "vaso-g" as const, icon: "🪴" },
-  { label: "Jardineira pequena (40cm)", value: "jardineira-p" as const, icon: "🌸" },
-  { label: "Jardineira média (60cm)", value: "jardineira-m" as const, icon: "🌸" },
-  { label: "Jardineira grande (80cm)", value: "jardineira-g" as const, icon: "🌸" },
+  { label: "Vaso pequeno (15cm)", value: "vaso-p", icon: "🪴" },
+  { label: "Vaso médio (25cm)", value: "vaso-m", icon: "🪴" },
+  { label: "Vaso grande (40cm)", value: "vaso-g", icon: "🪴" },
+  { label: "Jardineira pequena (40cm)", value: "jardineira-p", icon: "🌸" },
+  { label: "Jardineira média (60cm)", value: "jardineira-m", icon: "🌸" },
+  { label: "Jardineira grande (80cm)", value: "jardineira-g", icon: "🌸" },
 ];
 
 const lightRecommendations: Record<string, { name: string; emoji: string; reason: string }[]> = {
@@ -73,28 +62,22 @@ const lightRecommendations: Record<string, { name: string; emoji: string; reason
 };
 
 export default function PlanningPage() {
-  const [locations, setLocations] = useLocalStorage<GardenLocation[]>("garden-planning", []);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const { gardens: locations, isLoading, addGarden, updateGarden, removeGarden } = useGardens();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // Form state
   const [formName, setFormName] = useState("");
-  const [formSpace, setFormSpace] = useState<GardenLocation["type"]>("varanda");
-  const [formLight, setFormLight] = useState<GardenLocation["light"]>("full");
-  const [formGardenType, setFormGardenType] = useState<GardenLocation["gardenType"]>("chao");
+  const [formSpace, setFormSpace] = useState("varanda");
+  const [formLight, setFormLight] = useState("full");
+  const [formGardenType, setFormGardenType] = useState("chao");
   const [formContainers, setFormContainers] = useState<ContainerItem[]>([]);
   const [formWallHeight, setFormWallHeight] = useState("");
   const [formWallWidth, setFormWallWidth] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const resetForm = () => {
-    setFormName("");
-    setFormSpace("varanda");
-    setFormLight("full");
-    setFormGardenType("chao");
-    setFormContainers([]);
-    setFormWallHeight("");
-    setFormWallWidth("");
+    setFormName(""); setFormSpace("varanda"); setFormLight("full");
+    setFormGardenType("chao"); setFormContainers([]); setFormWallHeight(""); setFormWallWidth("");
     setEditingId(null);
   };
 
@@ -120,54 +103,62 @@ export default function PlanningPage() {
     const h = parseFloat(formWallHeight);
     const w = parseFloat(formWallWidth);
     if (!h || !w || h <= 0 || w <= 0) return 0;
-    const rows = Math.floor(h / 0.3);
-    const cols = Math.floor(w / 0.25);
-    return Math.max(rows * cols, 1);
+    return Math.max(Math.floor(h / 0.3) * Math.floor(w / 0.25), 1);
   };
 
   const saveLocation = () => {
     const spaceName = spaceOptions.find((s) => s.value === formSpace)?.label || formSpace;
-    const loc: GardenLocation = {
-      id: editingId || Date.now(),
+    const data = {
       name: formName || spaceName,
-      type: formSpace,
+      location: formSpace,
+      garden_type: formGardenType,
       light: formLight,
-      gardenType: formGardenType,
       containers: formContainers,
-      wallHeight: formGardenType === "vertical" ? parseFloat(formWallHeight) || undefined : undefined,
-      wallWidth: formGardenType === "vertical" ? parseFloat(formWallWidth) || undefined : undefined,
+      wall_height: formGardenType === "vertical" ? parseFloat(formWallHeight) || null : null,
+      wall_width: formGardenType === "vertical" ? parseFloat(formWallWidth) || null : null,
     };
 
     if (editingId) {
-      setLocations((prev) => prev.map((l) => l.id === editingId ? loc : l));
+      updateGarden.mutate({ id: editingId, updates: data });
     } else {
-      setLocations((prev) => [...prev, loc]);
+      addGarden.mutate(data);
     }
     resetForm();
     setShowForm(false);
   };
 
-  const editLocation = (loc: GardenLocation) => {
+  const editLocation = (loc: GardenDB) => {
     setFormName(loc.name);
-    setFormSpace(loc.type);
-    setFormLight(loc.light);
-    setFormGardenType(loc.gardenType);
-    setFormContainers(loc.containers);
-    setFormWallHeight(loc.wallHeight?.toString() || "");
-    setFormWallWidth(loc.wallWidth?.toString() || "");
+    setFormSpace(loc.location || "varanda");
+    setFormLight(loc.light || "full");
+    setFormGardenType(loc.garden_type || "chao");
+    setFormContainers(Array.isArray(loc.containers) ? loc.containers as ContainerItem[] : []);
+    setFormWallHeight(loc.wall_height?.toString() || "");
+    setFormWallWidth(loc.wall_width?.toString() || "");
     setEditingId(loc.id);
     setShowForm(true);
   };
 
-  const deleteLocation = (id: number) => {
-    setLocations((prev) => prev.filter((l) => l.id !== id));
+  const deleteLocation = (id: string) => {
+    removeGarden.mutate(id);
     setConfirmDeleteId(null);
   };
 
   const totalContainers = locations.reduce(
-    (sum, loc) => sum + loc.containers.reduce((s, c) => s + c.quantity, 0),
-    0
+    (sum, loc) => {
+      const containers = Array.isArray(loc.containers) ? loc.containers as ContainerItem[] : [];
+      return sum + containers.reduce((s: number, c: ContainerItem) => s + c.quantity, 0);
+    }, 0
   );
+
+  if (isLoading) {
+    return (
+      <div className="p-6 md:p-8 max-w-4xl mx-auto text-center py-12">
+        <span className="text-4xl block mb-3 animate-bounce">📐</span>
+        <p className="text-sm text-muted-foreground">Carregando planejamentos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -200,7 +191,7 @@ export default function PlanningPage() {
           </div>
           <div className="garden-card p-4 text-center">
             <ArrowUpDown className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-            <p className="text-lg font-bold text-foreground">{locations.filter((l) => l.gardenType === "vertical").length}</p>
+            <p className="text-lg font-bold text-foreground">{locations.filter((l) => l.garden_type === "vertical").length}</p>
             <p className="text-xs text-muted-foreground">Jardins verticais</p>
           </div>
         </div>
@@ -208,10 +199,11 @@ export default function PlanningPage() {
 
       {/* Saved locations */}
       {locations.map((loc) => {
-        const spaceIcon = spaceOptions.find((s) => s.value === loc.type)?.icon || "📍";
+        const spaceIcon = spaceOptions.find((s) => s.value === loc.location)?.icon || "📍";
         const lightLabel = lightOptions.find((l) => l.value === loc.light)?.label || loc.light;
-        const gardenLabel = gardenTypeOptions.find((g) => g.value === loc.gardenType)?.label || loc.gardenType;
-        const recs = lightRecommendations[loc.light] || [];
+        const gardenLabel = gardenTypeOptions.find((g) => g.value === loc.garden_type)?.label || loc.garden_type;
+        const recs = lightRecommendations[loc.light || "partial"] || [];
+        const containers = Array.isArray(loc.containers) ? loc.containers as ContainerItem[] : [];
 
         return (
           <div key={loc.id} className="garden-card p-5 animate-fade-in-up">
@@ -235,19 +227,18 @@ export default function PlanningPage() {
             <div className="flex flex-wrap gap-2 mb-3">
               <span className="text-xs bg-muted px-2 py-1 rounded-full">{lightLabel}</span>
               <span className="text-xs bg-muted px-2 py-1 rounded-full">{gardenLabel}</span>
-              {loc.gardenType === "vertical" && loc.wallHeight && loc.wallWidth && (
+              {loc.garden_type === "vertical" && loc.wall_height && loc.wall_width && (
                 <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-semibold">
-                  Parede {loc.wallHeight}m × {loc.wallWidth}m ≈ {Math.floor((loc.wallHeight / 0.3) * (loc.wallWidth / 0.25))} vasos
+                  Parede {loc.wall_height}m × {loc.wall_width}m ≈ {Math.floor((loc.wall_height / 0.3) * (loc.wall_width / 0.25))} vasos
                 </span>
               )}
             </div>
 
-            {/* Containers */}
-            {loc.containers.length > 0 && (
+            {containers.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-muted-foreground mb-1">Recipientes:</p>
                 <div className="flex flex-wrap gap-2">
-                  {loc.containers.map((c) => {
+                  {containers.map((c) => {
                     const cLabel = containerOptions.find((o) => o.value === c.type)?.label || c.type;
                     return (
                       <span key={c.type} className="text-xs bg-garden-green-pale text-garden-green-dark px-2 py-1 rounded-full font-semibold">
@@ -259,7 +250,6 @@ export default function PlanningPage() {
               </div>
             )}
 
-            {/* Recommendations */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                 <Check className="w-3 h-3 text-primary" /> Plantas recomendadas:
@@ -285,9 +275,7 @@ export default function PlanningPage() {
         <div className="garden-card p-12 text-center animate-fade-in-up animate-delay-100">
           <span className="text-5xl block mb-4">📐</span>
           <h3 className="font-heading text-lg font-bold text-foreground mb-2">Planeje seu jardim</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Adicione os locais onde deseja ter plantas e configure os vasos e jardineiras.
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">Adicione os locais onde deseja ter plantas.</p>
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
             className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 inline-flex items-center gap-2"
@@ -304,31 +292,20 @@ export default function PlanningPage() {
             {editingId ? "Editar Local" : "Novo Local do Jardim"}
           </h3>
 
-          {/* Name */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1 block">Nome (opcional)</label>
-            <input
-              type="text"
-              placeholder="Ex: Varanda da sala, Janela do quarto..."
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
-            />
+            <input type="text" placeholder="Ex: Varanda da sala..." value={formName} onChange={(e) => setFormName(e.target.value)}
+              className="w-full px-4 py-2.5 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary transition-colors" />
           </div>
 
-          {/* Space type */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-2 block flex items-center gap-1">
               <MapPin className="w-3 h-3" /> Onde será o jardim?
             </label>
             <div className="grid grid-cols-4 gap-2">
               {spaceOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFormSpace(opt.value)}
-                  className={`garden-card p-3 text-center border-2 transition-all duration-200 active:scale-95
-                    ${formSpace === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}
-                >
+                <button key={opt.value} onClick={() => setFormSpace(opt.value)}
+                  className={`garden-card p-3 text-center border-2 transition-all active:scale-95 ${formSpace === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}>
                   <span className="text-xl block mb-0.5">{opt.icon}</span>
                   <span className="text-[10px] font-semibold text-foreground">{opt.label}</span>
                 </button>
@@ -336,38 +313,28 @@ export default function PlanningPage() {
             </div>
           </div>
 
-          {/* Light */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-2 block flex items-center gap-1">
               <Sun className="w-3 h-3 text-amber-500" /> Quanta luz solar?
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               {lightOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFormLight(opt.value)}
-                  className={`flex-1 garden-card p-3 text-center border-2 transition-all duration-200 active:scale-95
-                    ${formLight === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}
-                >
+                <button key={opt.value} onClick={() => setFormLight(opt.value)}
+                  className={`flex-1 garden-card p-3 text-center border-2 transition-all active:scale-95 ${formLight === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}>
                   <span className="text-xs font-semibold text-foreground">{opt.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Garden type */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-2 block flex items-center gap-1">
               <ArrowUpDown className="w-3 h-3" /> Tipo de jardim
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               {gardenTypeOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setFormGardenType(opt.value)}
-                  className={`flex-1 garden-card p-3 text-center border-2 transition-all duration-200 active:scale-95
-                    ${formGardenType === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}
-                >
+                <button key={opt.value} onClick={() => setFormGardenType(opt.value)}
+                  className={`flex-1 garden-card p-3 text-center border-2 transition-all active:scale-95 ${formGardenType === opt.value ? "!border-primary bg-garden-green-mist" : "border-transparent"}`}>
                   <span className="text-xl block mb-0.5">{opt.icon}</span>
                   <span className="text-xs font-semibold text-foreground">{opt.label}</span>
                   <span className="text-[10px] text-muted-foreground block">{opt.desc}</span>
@@ -376,7 +343,6 @@ export default function PlanningPage() {
             </div>
           </div>
 
-          {/* Vertical garden calculator */}
           {formGardenType === "vertical" && (
             <div className="p-4 rounded-lg bg-garden-green-mist border border-garden-green-light space-y-3">
               <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
@@ -384,55 +350,35 @@ export default function PlanningPage() {
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Altura da parede (metros)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.3"
-                    placeholder="Ex: 2.5"
-                    value={formWallHeight}
-                    onChange={(e) => setFormWallHeight(e.target.value)}
-                    className="w-full px-3 py-2 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary"
-                  />
+                  <label className="text-xs text-muted-foreground mb-1 block">Altura (metros)</label>
+                  <input type="number" step="0.1" min="0.3" placeholder="Ex: 2.5" value={formWallHeight} onChange={(e) => setFormWallHeight(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Largura da parede (metros)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.25"
-                    placeholder="Ex: 1.5"
-                    value={formWallWidth}
-                    onChange={(e) => setFormWallWidth(e.target.value)}
-                    className="w-full px-3 py-2 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary"
-                  />
+                  <label className="text-xs text-muted-foreground mb-1 block">Largura (metros)</label>
+                  <input type="number" step="0.1" min="0.25" placeholder="Ex: 1.5" value={formWallWidth} onChange={(e) => setFormWallWidth(e.target.value)}
+                    className="w-full px-3 py-2 bg-background border-2 border-border rounded-lg text-sm focus:outline-none focus:border-primary" />
                 </div>
               </div>
               {formWallHeight && formWallWidth && calculateVerticalPots() > 0 && (
                 <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
                   <p className="text-sm font-bold text-foreground">
-                    🧱 Seu jardim vertical comporta aproximadamente <strong className="text-primary">{calculateVerticalPots()} vasos</strong>
+                    🧱 Aproximadamente <strong className="text-primary">{calculateVerticalPots()} vasos</strong>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Calculado com espaçamento de 30cm entre linhas e 25cm entre colunas.
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Espaçamento: 30cm entre linhas e 25cm entre colunas.</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Containers */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-2 block flex items-center gap-1">
               <Flower2 className="w-3 h-3" /> Vasos e jardineiras
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
               {containerOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => addContainer(opt.value)}
-                  className="garden-card p-2 text-center border-2 border-transparent hover:border-primary/50 transition-all active:scale-95"
-                >
+                <button key={opt.value} onClick={() => addContainer(opt.value as ContainerItem["type"])}
+                  className="garden-card p-2 text-center border-2 border-transparent hover:border-primary/50 transition-all active:scale-95">
                   <span className="text-lg">{opt.icon}</span>
                   <span className="text-[10px] font-semibold text-foreground block">{opt.label}</span>
                   <span className="text-[10px] text-primary">+ Adicionar</span>
@@ -446,25 +392,10 @@ export default function PlanningPage() {
                   return (
                     <div key={c.type} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
                       <span className="text-sm flex-1 font-semibold text-foreground">{cLabel}</span>
-                      <button
-                        onClick={() => updateContainerQty(c.type, c.quantity - 1)}
-                        className="w-7 h-7 rounded-md bg-muted text-foreground text-sm font-bold hover:bg-border transition-colors"
-                      >
-                        −
-                      </button>
+                      <button onClick={() => updateContainerQty(c.type, c.quantity - 1)} className="w-7 h-7 rounded-md bg-muted text-foreground text-sm font-bold hover:bg-border transition-colors">−</button>
                       <span className="text-sm font-bold w-6 text-center tabular-nums">{c.quantity}</span>
-                      <button
-                        onClick={() => updateContainerQty(c.type, c.quantity + 1)}
-                        className="w-7 h-7 rounded-md bg-muted text-foreground text-sm font-bold hover:bg-border transition-colors"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeContainer(c.type)}
-                        className="p-1 text-red-400 hover:text-red-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <button onClick={() => updateContainerQty(c.type, c.quantity + 1)} className="w-7 h-7 rounded-md bg-muted text-foreground text-sm font-bold hover:bg-border transition-colors">+</button>
+                      <button onClick={() => removeContainer(c.type)} className="p-1 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   );
                 })}
@@ -472,19 +403,11 @@ export default function PlanningPage() {
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
-            <button
-              onClick={saveLocation}
-              className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" />
-              {editingId ? "Salvar alterações" : "Adicionar local"}
+            <button onClick={saveLocation} className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all flex items-center gap-2">
+              <Check className="w-4 h-4" /> {editingId ? "Salvar alterações" : "Adicionar local"}
             </button>
-            <button
-              onClick={() => { resetForm(); setShowForm(false); }}
-              className="px-5 py-2.5 rounded-lg font-semibold text-sm bg-muted text-muted-foreground hover:bg-border transition-all"
-            >
+            <button onClick={() => { resetForm(); setShowForm(false); }} className="px-5 py-2.5 rounded-lg font-semibold text-sm bg-muted text-muted-foreground hover:bg-border transition-all">
               Cancelar
             </button>
           </div>

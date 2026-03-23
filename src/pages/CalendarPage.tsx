@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Droplets, Scissors, Leaf } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import type { GardenPlant } from "./MyGardenPage";
+import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { plants as catalogPlants } from "./CatalogPage";
 
 const months = [
@@ -26,18 +25,16 @@ const activityIcon = {
 
 const activityLabel = { water: "Regar", prune: "Podar", fertilize: "Adubar com Adubei" };
 
-// Parse frequency string like "A cada 15 dias" into number of days
-function parseFrequencyDays(freq: string): number {
+function parseFrequencyDays(freq: string | null): number {
+  if (!freq) return 30;
   const match = freq.match(/(\d+)/);
-  if (!match) return 30;
-  return parseInt(match[1], 10);
+  return match ? parseInt(match[1], 10) : 30;
 }
 
-// Determine watering frequency from water level
-function wateringDays(water: string): number {
+function wateringDays(water: string | null): number {
   if (water === "Pouca") return 7;
   if (water === "Moderada") return 4;
-  return 3; // Regular
+  return 3;
 }
 
 export default function CalendarPage() {
@@ -50,7 +47,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(currentYear);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const [gardenPlants] = useLocalStorage<GardenPlant[]>("garden-plants", []);
+  const { plants: gardenPlants, isLoading } = useGardenPlants();
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -62,43 +59,30 @@ export default function CalendarPage() {
 
   const prevMonth = () => {
     if (!canGoPrev) return;
-    if (month === 0) { setMonth(11); setYear(year - 1); }
-    else setMonth(month - 1);
+    if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1);
     setSelectedDay(null);
   };
   const nextMonth = () => {
     if (!canGoNext) return;
-    if (month === 11) { setMonth(0); setYear(year + 1); }
-    else setMonth(month + 1);
+    if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1);
     setSelectedDay(null);
   };
 
-  const goToYear = (y: number) => {
-    setYear(y);
-    setSelectedDay(null);
-  };
-
-  // Generate activities dynamically from garden plants
   const activities = useMemo(() => {
     const acts: Activity[] = [];
-    gardenPlants.forEach((gp) => {
+    gardenPlants.forEach((gp, idx) => {
       const catalogInfo = catalogPlants.find((cp) => cp.name === gp.name);
-      const waterDays = catalogInfo ? wateringDays(catalogInfo.water) : 3;
-      const fertDays = catalogInfo ? parseFrequencyDays(catalogInfo.fertilizerFrequency) : 30;
+      const wDays = wateringDays(gp.water_frequency || catalogInfo?.water || null);
+      const fDays = parseFrequencyDays(gp.fertilizer_frequency || catalogInfo?.fertilizerFrequency || null);
 
-      // Watering schedule
-      for (let d = waterDays; d <= daysInMonth; d += waterDays) {
-        acts.push({ day: d, type: "water", plant: gp.name, emoji: gp.emoji });
+      for (let d = wDays; d <= daysInMonth; d += wDays) {
+        acts.push({ day: d, type: "water", plant: gp.name, emoji: gp.emoji || "🌱" });
       }
-
-      // Fertilization schedule
-      for (let d = fertDays > daysInMonth ? daysInMonth : fertDays; d <= daysInMonth; d += fertDays) {
-        acts.push({ day: d, type: "fertilize", plant: gp.name, emoji: gp.emoji });
+      for (let d = fDays > daysInMonth ? daysInMonth : fDays; d <= daysInMonth; d += fDays) {
+        acts.push({ day: d, type: "fertilize", plant: gp.name, emoji: gp.emoji || "🌱" });
       }
-
-      // Pruning: once a month on a staggered day based on plant index
-      const pruneDay = Math.min(((gardenPlants.indexOf(gp) * 7 + 10) % daysInMonth) + 1, daysInMonth);
-      acts.push({ day: pruneDay, type: "prune", plant: gp.name, emoji: gp.emoji });
+      const pruneDay = Math.min(((idx * 7 + 10) % daysInMonth) + 1, daysInMonth);
+      acts.push({ day: pruneDay, type: "prune", plant: gp.name, emoji: gp.emoji || "🌱" });
     });
     return acts;
   }, [gardenPlants, daysInMonth]);
@@ -106,7 +90,6 @@ export default function CalendarPage() {
   const dayActivities = (day: number) => activities.filter((a) => a.day === day);
   const selectedActivities = selectedDay ? dayActivities(selectedDay) : [];
 
-  // Year options - show subset around current year
   const yearOptions: number[] = [];
   for (let y = minYear; y <= maxYear; y++) yearOptions.push(y);
 
@@ -116,22 +99,19 @@ export default function CalendarPage() {
         <h2 className="font-heading text-2xl font-bold text-foreground">Calendário 📅</h2>
         <p className="text-sm text-muted-foreground">
           {gardenPlants.length > 0
-            ? `Cuidados programados para ${gardenPlants.length} planta(s) — ${minYear} a ${maxYear}`
-            : `Adicione plantas no Meu Jardim para ver tarefas aqui — ${minYear} a ${maxYear}`}
+            ? `Cuidados para ${gardenPlants.length} planta(s) — ${minYear} a ${maxYear}`
+            : `Adicione plantas no Meu Jardim para ver tarefas — ${minYear} a ${maxYear}`}
         </p>
       </div>
 
       <div className="garden-card p-6 animate-fade-in-up animate-delay-100">
-        {/* Year selector */}
         <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
           {yearOptions.map((y) => (
             <button
               key={y}
-              onClick={() => goToYear(y)}
+              onClick={() => { setYear(y); setSelectedDay(null); }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
-                y === year
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border"
+                y === year ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-border"
               }`}
             >
               {y}
@@ -139,41 +119,24 @@ export default function CalendarPage() {
           ))}
         </div>
 
-        {/* Month nav */}
         <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={prevMonth}
-            disabled={!canGoPrev}
-            className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
+          <button onClick={prevMonth} disabled={!canGoPrev} className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
-          <h3 className="font-heading text-lg font-semibold text-foreground">
-            {months[month]} {year}
-          </h3>
-          <button
-            onClick={nextMonth}
-            disabled={!canGoNext}
-            className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
+          <h3 className="font-heading text-lg font-semibold text-foreground">{months[month]} {year}</h3>
+          <button onClick={nextMonth} disabled={!canGoNext} className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 
-        {/* Week days */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {weekDays.map((d) => (
-            <div key={d} className="text-center text-xs font-bold text-muted-foreground py-1">
-              {d}
-            </div>
+            <div key={d} className="text-center text-xs font-bold text-muted-foreground py-1">{d}</div>
           ))}
         </div>
 
-        {/* Days */}
         <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} />
-          ))}
+          {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
             const isToday = isCurrentMonth && day === today;
             const acts = dayActivities(day);
@@ -202,14 +165,13 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Selected day activities */}
       {selectedDay && (
         <div className="garden-card p-5 animate-fade-in-up">
           <h4 className="font-heading text-base font-semibold text-foreground mb-3">
             Atividades — Dia {selectedDay}
           </h4>
           {selectedActivities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma atividade programada para este dia.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma atividade programada.</p>
           ) : (
             <div className="space-y-2">
               {selectedActivities.map((act, i) => (
@@ -225,17 +187,15 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {gardenPlants.length === 0 && (
+      {gardenPlants.length === 0 && !isLoading && (
         <div className="garden-card p-8 text-center animate-fade-in-up animate-delay-200">
           <span className="text-4xl block mb-3">🌱</span>
           <p className="text-sm text-muted-foreground">
-            Adicione plantas no <strong>Meu Jardim</strong> para ver o calendário de cuidados personalizado.
+            Adicione plantas no <strong>Meu Jardim</strong> para ver o calendário de cuidados.
           </p>
         </div>
       )}
 
-      {/* Legend */}
       <div className="flex gap-4 text-xs text-muted-foreground animate-fade-in-up animate-delay-200">
         <span className="flex items-center gap-1.5">{activityIcon.water} Regar</span>
         <span className="flex items-center gap-1.5">{activityIcon.prune} Podar</span>
