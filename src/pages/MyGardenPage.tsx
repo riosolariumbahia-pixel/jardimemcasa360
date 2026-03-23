@@ -75,6 +75,7 @@ export default function MyGardenPage() {
 
   const removePlant = (id: number) => {
     setPlants((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDeleteId(null);
   };
 
   const healthColor = (h: number) =>
