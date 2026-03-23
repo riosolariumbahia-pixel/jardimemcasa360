@@ -95,7 +95,15 @@ export function GardenSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-sidebar-border/30">
+        <div className="px-6 py-4 border-t border-sidebar-border/30 space-y-3">
+          {user && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-sidebar-foreground/60 truncate max-w-[160px]">{user.email}</p>
+              <button onClick={handleLogout} className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors" title="Sair">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <p className="text-xs text-sidebar-foreground/40 flex items-center gap-1.5">
             <Sprout className="w-3 h-3" />
             Jardim 360º v1.0
