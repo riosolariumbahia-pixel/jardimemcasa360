@@ -73,9 +73,9 @@ const lightRecommendations: Record<string, { name: string; emoji: string; reason
 };
 
 export default function PlanningPage() {
-  const [locations, setLocations] = useLocalStorage<GardenLocation[]>("garden-planning", []);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const { gardens: locations, isLoading, addGarden, updateGarden, removeGarden } = useGardens();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
