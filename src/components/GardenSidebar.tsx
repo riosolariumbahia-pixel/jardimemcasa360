@@ -18,7 +18,13 @@ const navItems = [
 
 export function GardenSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
   return (
     <>
       {/* Mobile toggle */}
