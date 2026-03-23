@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Droplets, Sun, Trash2, Plus, Heart, Leaf, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Droplets, Sun, Trash2, Plus, Heart, Leaf, X, Search, ShoppingCart, AlertTriangle, Scissors } from "lucide-react";
 import { plants as catalogPlants, Plant as CatalogPlant } from "./CatalogPage";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
@@ -10,10 +10,13 @@ interface GardenPlant {
   health: number;
   lastWatered: string;
   lastFertilized: string;
+  lastPruned: string;
   location: string;
   fertilizerFrequency: string;
   fertilizerAmount: string;
   needsFertilizer: boolean;
+  needsWater: boolean;
+  needsPruning: boolean;
 }
 
 export type { GardenPlant };
@@ -23,6 +26,7 @@ export default function MyGardenPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const addPlant = (catalogPlant: CatalogPlant) => {
     const newPlant: GardenPlant = {
@@ -32,10 +36,13 @@ export default function MyGardenPage() {
       health: 80,
       lastWatered: "Nunca",
       lastFertilized: "Nunca",
+      lastPruned: "Nunca",
       location: "Não definido",
       fertilizerFrequency: catalogPlant.fertilizerFrequency,
       fertilizerAmount: catalogPlant.fertilizerAmount,
       needsFertilizer: true,
+      needsWater: true,
+      needsPruning: false,
     };
     setPlants((prev) => [...prev, newPlant]);
     setShowAddModal(false);
@@ -45,7 +52,7 @@ export default function MyGardenPage() {
   const waterPlant = (id: number) => {
     setPlants((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, health: Math.min(100, p.health + 10), lastWatered: "Agora" } : p
+        p.id === id ? { ...p, health: Math.min(100, p.health + 10), lastWatered: "Agora", needsWater: false } : p
       )
     );
   };
@@ -58,8 +65,17 @@ export default function MyGardenPage() {
     );
   };
 
+  const prunePlant = (id: number) => {
+    setPlants((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, health: Math.min(100, p.health + 3), lastPruned: "Hoje", needsPruning: false } : p
+      )
+    );
+  };
+
   const removePlant = (id: number) => {
     setPlants((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDeleteId(null);
   };
 
   const healthColor = (h: number) =>
@@ -204,7 +220,12 @@ export default function MyGardenPage() {
                   </span>
                   {plant.needsFertilizer && (
                     <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Precisa adubar
+                      <AlertTriangle className="w-3 h-3" /> Adubar
+                    </span>
+                  )}
+                  {plant.needsWater && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <Droplets className="w-3 h-3" /> Regar
                     </span>
                   )}
                 </div>
@@ -219,33 +240,51 @@ export default function MyGardenPage() {
                     {plant.health}%
                   </span>
                 </div>
-                <div className="flex gap-4 mt-1">
+                <div className="flex gap-3 mt-1 flex-wrap">
                   <p className="text-xs text-muted-foreground">💧 Rega: {plant.lastWatered}</p>
                   <p className="text-xs text-muted-foreground">🌱 Adubo: {plant.lastFertilized}</p>
+                  <p className="text-xs text-muted-foreground">✂️ Poda: {plant.lastPruned || "Nunca"}</p>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => waterPlant(plant.id)}
-                  className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95 transition-all duration-200"
-                  title="Regar"
-                >
-                  <Droplets className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => fertilizePlant(plant.id)}
-                  className="p-2 rounded-lg bg-garden-green-pale text-primary hover:bg-garden-green-mist active:scale-95 transition-all duration-200"
-                  title="Adubar com Adubei"
-                >
-                  <Leaf className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => removePlant(plant.id)}
-                  className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 active:scale-95 transition-all duration-200"
-                  title="Remover"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => waterPlant(plant.id)}
+                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95 transition-all duration-200"
+                    title="Regar"
+                  >
+                    <Droplets className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => fertilizePlant(plant.id)}
+                    className="p-2 rounded-lg bg-garden-green-pale text-primary hover:bg-garden-green-mist active:scale-95 transition-all duration-200"
+                    title="Adubar com Adubei"
+                  >
+                    <Leaf className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => prunePlant(plant.id)}
+                    className="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all duration-200"
+                    title="Podar"
+                  >
+                    <Scissors className="w-4 h-4" />
+                  </button>
+                </div>
+                {confirmDeleteId === plant.id ? (
+                  <div className="flex items-center gap-1 p-1 bg-red-50 rounded-lg">
+                    <span className="text-[10px] text-red-600 font-semibold">Excluir?</span>
+                    <button onClick={() => removePlant(plant.id)} className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-semibold">Sim</button>
+                    <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] bg-muted px-2 py-0.5 rounded font-semibold">Não</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(plant.id)}
+                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 active:scale-95 transition-all duration-200 self-end"
+                    title="Remover do jardim"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
