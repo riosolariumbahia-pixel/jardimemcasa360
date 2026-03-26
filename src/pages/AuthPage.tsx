@@ -32,9 +32,9 @@ export default function AuthPage() {
       const { error } = await signIn(email, password);
       if (error) {
         setError(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
-      } else {
-        navigate("/");
+        setLoading(false);
       }
+      // Navigation handled by useEffect when user state updates
     } else {
       if (password.length < 6) {
         setError("A senha deve ter pelo menos 6 caracteres");
