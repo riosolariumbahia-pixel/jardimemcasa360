@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Leaf, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
@@ -12,8 +12,15 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to home when user is authenticated
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,9 +32,9 @@ export default function AuthPage() {
       const { error } = await signIn(email, password);
       if (error) {
         setError(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
-      } else {
-        navigate("/");
+        setLoading(false);
       }
+      // Navigation handled by useEffect when user state updates
     } else {
       if (password.length < 6) {
         setError("A senha deve ter pelo menos 6 caracteres");
