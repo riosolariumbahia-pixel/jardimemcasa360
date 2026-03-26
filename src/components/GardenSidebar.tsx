@@ -88,7 +88,7 @@ export function GardenSidebar() {
               activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
               onClick={() => setMobileOpen(false)}
             >
-              <item.icon className="w-4.5 h-4.5 shrink-0" />
+              <item.icon className="w-[18px] h-[18px] shrink-0" />
               <span>{item.title}</span>
             </NavLink>
           ))}
