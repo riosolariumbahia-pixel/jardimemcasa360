@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { GardenLayout } from "./components/GardenLayout";
 import HomePage from "./pages/HomePage";
 import CatalogPage from "./pages/CatalogPage";
@@ -13,10 +14,14 @@ import NotFound from "./pages/NotFound";
 import AssistantPage from "./pages/AssistantPage";
 import DiagnosisAIPage from "./pages/DiagnosisAIPage";
 import DashboardPage from "./pages/DashboardPage";
-import InsightsPage from "./pages/InsightsPage";
+import PercepcionsPage from "./pages/PercepcionsPage";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminAnunciantesPage from "./pages/admin/AdminAnunciantesPage";
+import AdminAnunciosPage from "./pages/admin/AdminAnunciosPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -24,6 +29,15 @@ const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const checkedInitialRouteRef = useRef(false);
+
+  if (user && !loading && !checkedInitialRouteRef.current) {
+    checkedInitialRouteRef.current = true;
+    if (location.pathname === "/ebook") {
+      return <Navigate to="/meu-jardim" replace />;
+    }
+  }
 
   if (loading) {
     return (
@@ -41,7 +55,7 @@ function ProtectedRoutes() {
   return (
     <GardenLayout>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Navigate to="/meu-jardim" replace />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/meu-jardim" element={<MyGardenPage />} />
         <Route path="/adubacao" element={<FertilizationPage />} />
@@ -53,8 +67,8 @@ function ProtectedRoutes() {
         <Route path="/assistente" element={<AssistantPage />} />
         <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/insights" element={<InsightsPage />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/percepcoes" element={<PercepcionsPage />} />
+        <Route path="*" element={<Navigate to="/meu-jardim" replace />} />
       </Routes>
     </GardenLayout>
   );
@@ -68,6 +82,10 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<AuthPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/anunciantes" element={<AdminAnunciantesPage />} />
+            <Route path="/admin/anuncios" element={<AdminAnunciosPage />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

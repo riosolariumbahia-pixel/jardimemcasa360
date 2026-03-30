@@ -1,11 +1,12 @@
-import { useState, useRef } from "react";
-import { Camera, Upload, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 
 interface DiagnosisResult {
   problema: string;
@@ -23,11 +24,27 @@ export default function DiagnosisAIPage() {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [hasCamera, setHasCamera] = useState(true);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setHasCamera(false);
+      return;
+    }
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      setHasCamera(devices.some((d) => d.kind === "videoinput"));
+    }).catch(() => setHasCamera(false));
+  }, []);
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast.error("Selecione uma imagem válida");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 10MB");
       return;
     }
     const reader = new FileReader();
@@ -132,16 +149,25 @@ export default function DiagnosisAIPage() {
           <h1 className="font-heading text-lg font-bold text-foreground">Diagnóstico por Foto</h1>
           <Sparkles className="w-4 h-4 text-primary" />
         </div>
-        <p className="text-sm text-muted-foreground">Tire uma foto da sua planta e a IA vai identificar possíveis problemas</p>
+        <p className="text-sm text-muted-foreground">Tire uma foto ou selecione uma imagem da sua planta para diagnóstico</p>
       </div>
 
       <Card>
         <CardContent className="p-6 space-y-4">
+          {/* Camera input */}
           <input
-            ref={fileRef}
+            ref={cameraRef}
             type="file"
             accept="image/*"
             capture="environment"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
+          {/* Gallery input */}
+          <input
+            ref={galleryRef}
+            type="file"
+            accept="image/*,.heic"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
@@ -151,19 +177,35 @@ export default function DiagnosisAIPage() {
               <img src={imagePreview} alt="Planta" className="w-full max-h-80 object-contain rounded-xl border border-border" />
               <button
                 onClick={() => { setImagePreview(null); setImageBase64(null); setResult(null); }}
-                className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full px-3 py-1 text-xs"
+                className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 shadow-md hover:bg-background transition-colors"
+                title="Remover imagem"
               >
-                Trocar foto
+                <X className="w-4 h-4 text-foreground" />
               </button>
             </div>
           ) : (
-            <div
-              onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 transition-colors"
-            >
-              <Camera className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm font-medium text-foreground">Toque para tirar foto ou selecionar imagem</p>
-              <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WEBP</p>
+            <div className="border-2 border-dashed border-border rounded-xl p-8 space-y-4">
+              <p className="text-center text-sm font-medium text-foreground mb-2">Como deseja enviar a imagem?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {hasCamera && (
+                  <button
+                    onClick={() => cameraRef.current?.click()}
+                    className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                  >
+                    <Camera className="w-10 h-10 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Tirar Foto</span>
+                    <span className="text-xs text-muted-foreground">Usar câmera do dispositivo</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => galleryRef.current?.click()}
+                  className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
+                >
+                  <ImagePlus className="w-10 h-10 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Selecionar da Galeria</span>
+                  <span className="text-xs text-muted-foreground">JPG, PNG, WEBP ou HEIC (máx 10MB)</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -174,9 +216,7 @@ export default function DiagnosisAIPage() {
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando com IA...
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" /> Analisar Planta
-                </>
+              <><Sparkles className="w-4 h-4 mr-2" /> Analisar imagem</>
               )}
             </Button>
           )}
@@ -184,55 +224,85 @@ export default function DiagnosisAIPage() {
       </Card>
 
       {result && (
-        <Card className="animate-fade-in-up">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
-              {(() => {
-                const g = gravityConfig[result.gravidade] || gravityConfig.media;
-                const Icon = g.icon;
-                return (
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
-                    <Icon className="w-3 h-3" /> {g.label}
-                  </span>
-                );
-              })()}
-            </div>
+        <>
+          <Card className="animate-fade-in-up">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
+                {(() => {
+                  const g = gravityConfig[result.gravidade] || gravityConfig.media;
+                  const Icon = g.icon;
+                  return (
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
+                      <Icon className="w-3 h-3" /> {g.label}
+                    </span>
+                  );
+                })()}
+              </div>
 
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Confiança da IA</p>
-              <div className="flex items-center gap-3">
-                <Progress value={result.confianca * 100} className="flex-1" />
-                <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Confiança da IA</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={result.confianca * 100} className="flex-1" />
+                  <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+                </div>
+                {result.confianca < 0.6 && (
+                  <p className="text-xs text-yellow-600 flex items-center gap-1">
+                    <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
+                  </p>
+                )}
               </div>
-              {result.confianca < 0.6 && (
-                <p className="text-xs text-yellow-600 flex items-center gap-1">
-                  <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
-                <p className="text-sm text-foreground">{result.problema}</p>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
+                  <p className="text-sm text-foreground">{result.problema}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
+                  <p className="text-sm text-foreground">{result.causa}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+                  <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
+                  <p className="text-sm text-foreground">{result.acao}</p>
+                </div>
               </div>
-              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
-                <p className="text-sm text-foreground">{result.causa}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-green-50 border border-green-100">
-                <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
-                <p className="text-sm text-foreground">{result.acao}</p>
-              </div>
-            </div>
 
-            <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
-              Analisar outra planta
-            </Button>
-          </CardContent>
-        </Card>
+              <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
+                Analisar outra planta
+              </Button>
+            </CardContent>
+          </Card>
+
+          <PostDiagnosticAd />
+        </>
       )}
     </div>
+  );
+}
+
+function PostDiagnosticAd() {
+  const { data: anuncios } = useAnuncios("prestador");
+  const registrarClique = useRegistrarClique();
+
+  if (!anuncios || anuncios.length === 0) return null;
+
+  const ad = anuncios[0];
+  const handleClick = () => {
+    registrarClique(ad.id);
+    window.open(ad.link_whatsapp, "_blank");
+  };
+
+  return (
+    <Card className="border-dashed border-primary/20 bg-primary/5">
+      <CardContent className="p-4 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">Precisa de ajuda profissional? 🌿</p>
+        <p className="text-xs text-muted-foreground">{ad.anunciantes.nome} · {ad.anunciantes.cidade}</p>
+        <Button size="sm" className="gap-1.5" onClick={handleClick}>
+          <MessageCircle className="w-3.5 h-3.5" />
+          Falar no WhatsApp
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
