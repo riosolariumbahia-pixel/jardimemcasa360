@@ -33,10 +33,10 @@ export function GardenSidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg garden-sidebar-gradient text-primary-foreground shadow-lg active:scale-95 transition-transform"
+        className="md:hidden fixed top-2 left-2 z-50 p-1.5 rounded-md garden-sidebar-gradient text-primary-foreground shadow-md active:scale-95 transition-transform opacity-90"
         aria-label="Abrir menu"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-4 h-4" />
       </button>
 
       {/* Overlay */}
