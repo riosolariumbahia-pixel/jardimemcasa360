@@ -272,7 +272,35 @@ export default function DiagnosisAIPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <PostDiagnosticAd />
       )}
     </div>
+  );
+}
+
+function PostDiagnosticAd() {
+  const { data: anuncios } = useAnuncios("prestador");
+  const registrarClique = useRegistrarClique();
+
+  if (!anuncios || anuncios.length === 0) return null;
+
+  const ad = anuncios[0];
+  const handleClick = () => {
+    registrarClique(ad.id);
+    window.open(ad.link_whatsapp, "_blank");
+  };
+
+  return (
+    <Card className="border-dashed border-primary/20 bg-primary/5">
+      <CardContent className="p-4 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">Precisa de ajuda profissional? 🌿</p>
+        <p className="text-xs text-muted-foreground">{ad.anunciantes.nome} · {ad.anunciantes.cidade}</p>
+        <Button size="sm" className="gap-1.5" onClick={handleClick}>
+          <MessageCircle className="w-3.5 h-3.5" />
+          Falar no WhatsApp
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
