@@ -14,6 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_insights: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          priority: Database["public"]["Enums"]["insight_priority"]
+          read: boolean | null
+          type: Database["public"]["Enums"]["insight_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          priority?: Database["public"]["Enums"]["insight_priority"]
+          read?: boolean | null
+          type: Database["public"]["Enums"]["insight_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["insight_priority"]
+          read?: boolean | null
+          type?: Database["public"]["Enums"]["insight_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_interactions: {
+        Row: {
+          ai_response: string
+          context: Json | null
+          created_at: string
+          id: string
+          user_id: string
+          user_message: string
+        }
+        Insert: {
+          ai_response: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          user_id: string
+          user_message: string
+        }
+        Update: {
+          ai_response?: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          user_id?: string
+          user_message?: string
+        }
+        Relationships: []
+      }
+      analises_imagem: {
+        Row: {
+          ai_result: Json
+          confidence: number
+          created_at: string
+          id: string
+          image_url: string
+          plant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_result?: Json
+          confidence?: number
+          created_at?: string
+          id?: string
+          image_url: string
+          plant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_result?: Json
+          confidence?: number
+          created_at?: string
+          id?: string
+          image_url?: string
+          plant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analises_imagem_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "garden_plants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       garden_plants: {
         Row: {
           category: string | null
@@ -207,6 +302,36 @@ export type Database = {
           },
         ]
       }
+      weather_cache: {
+        Row: {
+          city: string
+          created_at: string
+          humidity: number | null
+          id: string
+          rain_forecast: boolean | null
+          ref_date: string
+          temperature: number | null
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          humidity?: number | null
+          id?: string
+          rain_forecast?: boolean | null
+          ref_date?: string
+          temperature?: number | null
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          humidity?: number | null
+          id?: string
+          rain_forecast?: boolean | null
+          ref_date?: string
+          temperature?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -215,7 +340,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      insight_priority: "baixa" | "media" | "alta"
+      insight_type: "alerta" | "recomendacao" | "previsao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -342,6 +468,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      insight_priority: ["baixa", "media", "alta"],
+      insight_type: ["alerta", "recomendacao", "previsao"],
+    },
   },
 } as const
