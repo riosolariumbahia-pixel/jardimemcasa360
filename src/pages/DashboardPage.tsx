@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const { gardenPlants, isLoading } = useGardenPlants();
+  const { plants: gardenPlants, isLoading } = useGardenPlants();
   const navigate = useNavigate();
 
   const stats = useMemo(() => {

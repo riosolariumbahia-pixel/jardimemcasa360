@@ -10,6 +10,10 @@ import EbookPage from "./pages/EbookPage";
 import FertilizationPage from "./pages/FertilizationPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import AssistantPage from "./pages/AssistantPage";
+import DiagnosisAIPage from "./pages/DiagnosisAIPage";
+import DashboardPage from "./pages/DashboardPage";
+import InsightsPage from "./pages/InsightsPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
@@ -46,6 +50,10 @@ function ProtectedRoutes() {
         <Route path="/planejamento" element={<PlanningPage />} />
         <Route path="/dicas" element={<TipsPage />} />
         <Route path="/ebook" element={<EbookPage />} />
+        <Route path="/assistente" element={<AssistantPage />} />
+        <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </GardenLayout>

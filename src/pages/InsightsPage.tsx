@@ -28,7 +28,7 @@ const priorityBadge = {
 
 export default function InsightsPage() {
   const { user } = useAuth();
-  const { gardenPlants } = useGardenPlants();
+  const { plants: gardenPlants } = useGardenPlants();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
 

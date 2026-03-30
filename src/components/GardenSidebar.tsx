@@ -1,4 +1,4 @@
-import { Home, Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut } from "lucide-react";
+import { Home, Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,11 +6,15 @@ import { useNavigate } from "react-router-dom";
 
 const navItems = [
   { title: "Início", url: "/", icon: Home },
+  { title: "Dashboard IA", url: "/dashboard", icon: Activity },
+  { title: "Assistente IA", url: "/assistente", icon: Bot },
+  { title: "Diagnóstico IA", url: "/diagnostico-ia", icon: Camera },
+  { title: "Insights", url: "/insights", icon: Eye },
   { title: "Catálogo de Plantas", url: "/catalogo", icon: Leaf },
   { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
   { title: "Adubação", url: "/adubacao", icon: Beaker },
   { title: "Calendário", url: "/calendario", icon: Calendar },
-  { title: "Diagnóstico", url: "/diagnostico", icon: Stethoscope },
+  { title: "Diagnóstico Manual", url: "/diagnostico", icon: Stethoscope },
   { title: "Planejamento", url: "/planejamento", icon: ClipboardList },
   { title: "Dicas e Sugestões", url: "/dicas", icon: Lightbulb },
   { title: "E-book", url: "/ebook", icon: BookOpen },
