@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 
 interface DiagnosisResult {
   problema: string;
@@ -223,55 +224,85 @@ export default function DiagnosisAIPage() {
       </Card>
 
       {result && (
-        <Card className="animate-fade-in-up">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
-              {(() => {
-                const g = gravityConfig[result.gravidade] || gravityConfig.media;
-                const Icon = g.icon;
-                return (
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
-                    <Icon className="w-3 h-3" /> {g.label}
-                  </span>
-                );
-              })()}
-            </div>
+        <>
+          <Card className="animate-fade-in-up">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
+                {(() => {
+                  const g = gravityConfig[result.gravidade] || gravityConfig.media;
+                  const Icon = g.icon;
+                  return (
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
+                      <Icon className="w-3 h-3" /> {g.label}
+                    </span>
+                  );
+                })()}
+              </div>
 
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Confiança da IA</p>
-              <div className="flex items-center gap-3">
-                <Progress value={result.confianca * 100} className="flex-1" />
-                <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Confiança da IA</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={result.confianca * 100} className="flex-1" />
+                  <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+                </div>
+                {result.confianca < 0.6 && (
+                  <p className="text-xs text-yellow-600 flex items-center gap-1">
+                    <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
+                  </p>
+                )}
               </div>
-              {result.confianca < 0.6 && (
-                <p className="text-xs text-yellow-600 flex items-center gap-1">
-                  <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
-                <p className="text-sm text-foreground">{result.problema}</p>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
+                  <p className="text-sm text-foreground">{result.problema}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
+                  <p className="text-sm text-foreground">{result.causa}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+                  <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
+                  <p className="text-sm text-foreground">{result.acao}</p>
+                </div>
               </div>
-              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
-                <p className="text-sm text-foreground">{result.causa}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-green-50 border border-green-100">
-                <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
-                <p className="text-sm text-foreground">{result.acao}</p>
-              </div>
-            </div>
 
-            <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
-              Analisar outra planta
-            </Button>
-          </CardContent>
-        </Card>
+              <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
+                Analisar outra planta
+              </Button>
+            </CardContent>
+          </Card>
+
+          <PostDiagnosticAd />
+        </>
       )}
     </div>
+  );
+}
+
+function PostDiagnosticAd() {
+  const { data: anuncios } = useAnuncios("prestador");
+  const registrarClique = useRegistrarClique();
+
+  if (!anuncios || anuncios.length === 0) return null;
+
+  const ad = anuncios[0];
+  const handleClick = () => {
+    registrarClique(ad.id);
+    window.open(ad.link_whatsapp, "_blank");
+  };
+
+  return (
+    <Card className="border-dashed border-primary/20 bg-primary/5">
+      <CardContent className="p-4 text-center space-y-3">
+        <p className="text-sm font-semibold text-foreground">Precisa de ajuda profissional? 🌿</p>
+        <p className="text-xs text-muted-foreground">{ad.anunciantes.nome} · {ad.anunciantes.cidade}</p>
+        <Button size="sm" className="gap-1.5" onClick={handleClick}>
+          <MessageCircle className="w-3.5 h-3.5" />
+          Falar no WhatsApp
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

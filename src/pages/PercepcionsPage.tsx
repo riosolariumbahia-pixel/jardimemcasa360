@@ -6,6 +6,8 @@ import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { useAnuncios } from "@/hooks/useAnuncios";
+import AnuncioCard from "@/components/AnuncioCard";
 
 type StatusGeral = "bom" | "atencao" | "critico";
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -312,7 +314,26 @@ export default function PercepcionsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Anúncio contextual */}
+        <AnuncioContextual />
       </div>
     </div>
+  );
+}
+
+function AnuncioContextual() {
+  const { plants: gardenPlants } = useGardenPlants();
+  const needsFertilizer = gardenPlants.some(p => p.needs_fertilizer);
+  const tipo = needsFertilizer ? "fornecedor" as const : "prestador" as const;
+  const { data: anuncios } = useAnuncios(tipo);
+
+  if (!anuncios || anuncios.length === 0) return null;
+
+  return (
+    <AnuncioCard
+      anuncio={anuncios[0]}
+      label={needsFertilizer ? "Sugestão: Fornecedor de insumos" : "Sugestão: Prestador de serviços"}
+    />
   );
 }
