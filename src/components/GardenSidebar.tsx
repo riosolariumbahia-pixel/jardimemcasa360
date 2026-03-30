@@ -92,7 +92,7 @@ export function GardenSidebar() {
               onClick={() => setMobileOpen(false)}
             >
               <item.icon className="w-[18px] h-[18px] shrink-0" />
-              <span>{item.title}</span>
+              <span className="whitespace-nowrap">{item.title}</span>
             </NavLink>
           ))}
         </nav>
