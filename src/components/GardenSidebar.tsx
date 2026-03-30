@@ -1,17 +1,16 @@
-import { Home, Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye } from "lucide-react";
+import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const navItems = [
-  { title: "Início", url: "/", icon: Home },
+  { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
   { title: "Dashboard IA", url: "/dashboard", icon: Activity },
+  { title: "Percepções", url: "/percepcoes", icon: Eye },
   { title: "Assistente IA", url: "/assistente", icon: Bot },
   { title: "Diagnóstico IA", url: "/diagnostico-ia", icon: Camera },
-  { title: "Insights", url: "/insights", icon: Eye },
   { title: "Catálogo de Plantas", url: "/catalogo", icon: Leaf },
-  { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
   { title: "Adubação", url: "/adubacao", icon: Beaker },
   { title: "Calendário", url: "/calendario", icon: Calendar },
   { title: "Diagnóstico Manual", url: "/diagnostico", icon: Stethoscope },
@@ -87,7 +86,7 @@ export function GardenSidebar() {
             <NavLink
               key={item.url}
               to={item.url}
-              end={item.url === "/"}
+              end={item.url === "/meu-jardim"}
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/15 hover:text-sidebar-foreground transition-all duration-200 border-l-[3px] border-transparent"
               activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
               onClick={() => setMobileOpen(false)}
