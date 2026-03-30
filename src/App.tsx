@@ -41,7 +41,7 @@ function ProtectedRoutes() {
   return (
     <GardenLayout>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Navigate to="/meu-jardim" replace />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/meu-jardim" element={<MyGardenPage />} />
         <Route path="/adubacao" element={<FertilizationPage />} />
