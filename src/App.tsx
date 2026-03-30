@@ -54,7 +54,7 @@ function ProtectedRoutes() {
         <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/percepcoes" element={<PercepcionsPage />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/meu-jardim" replace />} />
       </Routes>
     </GardenLayout>
   );
