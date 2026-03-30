@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { GardenLayout } from "./components/GardenLayout";
 import HomePage from "./pages/HomePage";
 import CatalogPage from "./pages/CatalogPage";
@@ -16,7 +17,7 @@ import DashboardPage from "./pages/DashboardPage";
 import PercepcionsPage from "./pages/PercepcionsPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -24,6 +25,15 @@ const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const checkedInitialRouteRef = useRef(false);
+
+  if (user && !loading && !checkedInitialRouteRef.current) {
+    checkedInitialRouteRef.current = true;
+    if (location.pathname === "/ebook") {
+      return <Navigate to="/meu-jardim" replace />;
+    }
+  }
 
   if (loading) {
     return (
