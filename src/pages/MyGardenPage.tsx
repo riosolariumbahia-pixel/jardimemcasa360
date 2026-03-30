@@ -13,6 +13,7 @@ export default function MyGardenPage() {
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const { data: anuncios } = useAnuncios();
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
     addPlant.mutate(catalogPlant);
