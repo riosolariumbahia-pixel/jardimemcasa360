@@ -17,7 +17,7 @@ import DashboardPage from "./pages/DashboardPage";
 import PercepcionsPage from "./pages/PercepcionsPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -26,7 +26,6 @@ const queryClient = new QueryClient();
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const checkedInitialRouteRef = useRef(false);
 
   if (user && !loading && !checkedInitialRouteRef.current) {
