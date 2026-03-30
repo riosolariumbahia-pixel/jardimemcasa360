@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 
 interface DiagnosisResult {
   problema: string;
