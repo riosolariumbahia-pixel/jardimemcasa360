@@ -224,56 +224,58 @@ export default function DiagnosisAIPage() {
       </Card>
 
       {result && (
-        <Card className="animate-fade-in-up">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
-              {(() => {
-                const g = gravityConfig[result.gravidade] || gravityConfig.media;
-                const Icon = g.icon;
-                return (
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
-                    <Icon className="w-3 h-3" /> {g.label}
-                  </span>
-                );
-              })()}
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Confiança da IA</p>
-              <div className="flex items-center gap-3">
-                <Progress value={result.confianca * 100} className="flex-1" />
-                <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+        <>
+          <Card className="animate-fade-in-up">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
+                {(() => {
+                  const g = gravityConfig[result.gravidade] || gravityConfig.media;
+                  const Icon = g.icon;
+                  return (
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
+                      <Icon className="w-3 h-3" /> {g.label}
+                    </span>
+                  );
+                })()}
               </div>
-              {result.confianca < 0.6 && (
-                <p className="text-xs text-yellow-600 flex items-center gap-1">
-                  <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
-                <p className="text-sm text-foreground">{result.problema}</p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Confiança da IA</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={result.confianca * 100} className="flex-1" />
+                  <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
+                </div>
+                {result.confianca < 0.6 && (
+                  <p className="text-xs text-yellow-600 flex items-center gap-1">
+                    <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
+                  </p>
+                )}
               </div>
-              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
-                <p className="text-sm text-foreground">{result.causa}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-green-50 border border-green-100">
-                <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
-                <p className="text-sm text-foreground">{result.acao}</p>
-              </div>
-            </div>
 
-            <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
-              Analisar outra planta
-            </Button>
-          </CardContent>
-        </Card>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
+                  <p className="text-sm text-foreground">{result.problema}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
+                  <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
+                  <p className="text-sm text-foreground">{result.causa}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+                  <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
+                  <p className="text-sm text-foreground">{result.acao}</p>
+                </div>
+              </div>
 
-        <PostDiagnosticAd />
+              <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
+                Analisar outra planta
+              </Button>
+            </CardContent>
+          </Card>
+
+          <PostDiagnosticAd />
+        </>
       )}
     </div>
   );
