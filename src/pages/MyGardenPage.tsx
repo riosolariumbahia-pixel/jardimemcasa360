@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
+import { useAnuncios } from "@/hooks/useAnuncios";
+import AnuncioCard from "@/components/AnuncioCard";
 
 export type { GardenPlantDB as GardenPlant };
 
