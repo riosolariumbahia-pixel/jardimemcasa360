@@ -5,13 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const navItems = [
-  { title: "Início", url: "/", icon: Home },
+  { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
   { title: "Dashboard IA", url: "/dashboard", icon: Activity },
+  { title: "Percepções", url: "/percepcoes", icon: Eye },
   { title: "Assistente IA", url: "/assistente", icon: Bot },
   { title: "Diagnóstico IA", url: "/diagnostico-ia", icon: Camera },
-  { title: "Insights", url: "/insights", icon: Eye },
   { title: "Catálogo de Plantas", url: "/catalogo", icon: Leaf },
-  { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
   { title: "Adubação", url: "/adubacao", icon: Beaker },
   { title: "Calendário", url: "/calendario", icon: Calendar },
   { title: "Diagnóstico Manual", url: "/diagnostico", icon: Stethoscope },
