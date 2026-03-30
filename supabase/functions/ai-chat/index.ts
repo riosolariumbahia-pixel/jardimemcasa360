@@ -48,6 +48,18 @@ Retorne um JSON array com estrutura:
 [{"tipo": "alerta"|"recomendacao"|"previsao", "descricao": "texto", "prioridade": "baixa"|"media"|"alta"}]`;
     }
 
+    if (mode === "percepcoes") {
+      systemPrompt += `\n\nVocê está no modo ASSISTENTE DE PERCEPÇÕES. O usuário vai fazer perguntas sobre o jardim dele.
+Você receberá os dados reais das plantas do usuário como contexto.
+Regras especiais:
+- Responda com base REAL nos dados fornecidos
+- Respostas curtas: máximo 3 frases
+- Linguagem simples e amigável
+- Evite termos técnicos
+- Sempre sugira uma ação prática
+- Se o usuário não tiver plantas, diga: "Adicione plantas ao seu jardim para receber recomendações personalizadas."`;
+    }
+
     const aiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
     if (imageBase64 && mode === "diagnosis") {
