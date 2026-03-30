@@ -13,7 +13,7 @@ import NotFound from "./pages/NotFound";
 import AssistantPage from "./pages/AssistantPage";
 import DiagnosisAIPage from "./pages/DiagnosisAIPage";
 import DashboardPage from "./pages/DashboardPage";
-import InsightsPage from "./pages/InsightsPage";
+import PercepcionsPage from "./pages/PercepcionsPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
