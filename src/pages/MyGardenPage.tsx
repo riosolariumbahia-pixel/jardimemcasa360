@@ -251,6 +251,11 @@ export default function MyGardenPage() {
         ))}
       </div>
 
+      {/* Anúncio */}
+      {anuncios && anuncios.length > 0 && (
+        <AnuncioCard anuncio={anuncios[0]} />
+      )}
+
       {/* Add plant modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-foreground/40 z-50 flex items-center justify-center p-4" onClick={() => setShowAddModal(false)}>
