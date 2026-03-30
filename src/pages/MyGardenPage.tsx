@@ -2,8 +2,6 @@ import { useState, useMemo } from "react";
 import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
-import { useAnuncios } from "@/hooks/useAnuncios";
-import AnuncioCard from "@/components/AnuncioCard";
 
 export type { GardenPlantDB as GardenPlant };
 
@@ -13,7 +11,6 @@ export default function MyGardenPage() {
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const { data: anuncios } = useAnuncios();
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
     addPlant.mutate(catalogPlant);
@@ -250,11 +247,6 @@ export default function MyGardenPage() {
           </div>
         ))}
       </div>
-
-      {/* Anúncio */}
-      {anuncios && anuncios.length > 0 && (
-        <AnuncioCard anuncio={anuncios[0]} />
-      )}
 
       {/* Add plant modal */}
       {showAddModal && (

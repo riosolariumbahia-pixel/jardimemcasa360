@@ -15,10 +15,6 @@ import AssistantPage from "./pages/AssistantPage";
 import DiagnosisAIPage from "./pages/DiagnosisAIPage";
 import DashboardPage from "./pages/DashboardPage";
 import PercepcionsPage from "./pages/PercepcionsPage";
-import AdminLoginPage from "./pages/admin/AdminLoginPage";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import AdminAnunciantesPage from "./pages/admin/AdminAnunciantesPage";
-import AdminAnunciosPage from "./pages/admin/AdminAnunciosPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
@@ -82,10 +78,6 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<AuthPage />} />
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/anunciantes" element={<AdminAnunciantesPage />} />
-            <Route path="/admin/anuncios" element={<AdminAnunciosPage />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

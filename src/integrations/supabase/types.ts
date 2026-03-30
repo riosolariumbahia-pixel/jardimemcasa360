@@ -109,112 +109,6 @@ export type Database = {
           },
         ]
       }
-      anunciantes: {
-        Row: {
-          ativo: boolean
-          cidade: string
-          criado_em: string
-          descricao: string
-          id: string
-          nome: string
-          plano: Database["public"]["Enums"]["plano_anunciante"]
-          tipo: Database["public"]["Enums"]["tipo_anunciante"]
-          whatsapp: string
-        }
-        Insert: {
-          ativo?: boolean
-          cidade: string
-          criado_em?: string
-          descricao: string
-          id?: string
-          nome: string
-          plano?: Database["public"]["Enums"]["plano_anunciante"]
-          tipo: Database["public"]["Enums"]["tipo_anunciante"]
-          whatsapp: string
-        }
-        Update: {
-          ativo?: boolean
-          cidade?: string
-          criado_em?: string
-          descricao?: string
-          id?: string
-          nome?: string
-          plano?: Database["public"]["Enums"]["plano_anunciante"]
-          tipo?: Database["public"]["Enums"]["tipo_anunciante"]
-          whatsapp?: string
-        }
-        Relationships: []
-      }
-      anuncios: {
-        Row: {
-          anunciante_id: string
-          ativo: boolean
-          criado_em: string
-          descricao: string
-          id: string
-          imagem_url: string | null
-          link_whatsapp: string
-          titulo: string
-        }
-        Insert: {
-          anunciante_id: string
-          ativo?: boolean
-          criado_em?: string
-          descricao: string
-          id?: string
-          imagem_url?: string | null
-          link_whatsapp: string
-          titulo: string
-        }
-        Update: {
-          anunciante_id?: string
-          ativo?: boolean
-          criado_em?: string
-          descricao?: string
-          id?: string
-          imagem_url?: string | null
-          link_whatsapp?: string
-          titulo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "anuncios_anunciante_id_fkey"
-            columns: ["anunciante_id"]
-            isOneToOne: false
-            referencedRelation: "anunciantes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cliques_anuncios: {
-        Row: {
-          anuncio_id: string
-          criado_em: string
-          id: string
-          usuario_id: string
-        }
-        Insert: {
-          anuncio_id: string
-          criado_em?: string
-          id?: string
-          usuario_id: string
-        }
-        Update: {
-          anuncio_id?: string
-          criado_em?: string
-          id?: string
-          usuario_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cliques_anuncios_anuncio_id_fkey"
-            columns: ["anuncio_id"]
-            isOneToOne: false
-            referencedRelation: "anuncios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       garden_plants: {
         Row: {
           category: string | null
@@ -408,24 +302,6 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
       weather_cache: {
         Row: {
           city: string
@@ -461,20 +337,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "user"
       insight_priority: "baixa" | "media" | "alta"
       insight_type: "alerta" | "recomendacao" | "previsao"
-      plano_anunciante: "free" | "premium"
-      tipo_anunciante: "fornecedor" | "prestador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -602,11 +469,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
       insight_priority: ["baixa", "media", "alta"],
       insight_type: ["alerta", "recomendacao", "previsao"],
-      plano_anunciante: ["free", "premium"],
-      tipo_anunciante: ["fornecedor", "prestador"],
     },
   },
 } as const
