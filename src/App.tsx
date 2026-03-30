@@ -13,7 +13,7 @@ import NotFound from "./pages/NotFound";
 import AssistantPage from "./pages/AssistantPage";
 import DiagnosisAIPage from "./pages/DiagnosisAIPage";
 import DashboardPage from "./pages/DashboardPage";
-import PercepcionsPage from "./pages/PercepcionsPage";
+import InsightsPage from "./pages/InsightsPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
@@ -41,7 +41,7 @@ function ProtectedRoutes() {
   return (
     <GardenLayout>
       <Routes>
-        <Route path="/" element={<Navigate to="/meu-jardim" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/meu-jardim" element={<MyGardenPage />} />
         <Route path="/adubacao" element={<FertilizationPage />} />
@@ -53,7 +53,7 @@ function ProtectedRoutes() {
         <Route path="/assistente" element={<AssistantPage />} />
         <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/percepcoes" element={<PercepcionsPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </GardenLayout>

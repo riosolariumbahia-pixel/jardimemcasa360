@@ -18,7 +18,7 @@ export default function AuthPage() {
   // Redirect to home when user is authenticated
   useEffect(() => {
     if (user) {
-      navigate("/meu-jardim", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [user, navigate]);
 
