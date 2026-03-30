@@ -4,20 +4,20 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-const navItems = [
-  { title: "Meu Jardim", url: "/meu-jardim", icon: TreeDeciduous },
-  { title: "Dashboard IA", url: "/dashboard", icon: Activity },
-  { title: "Percepções", url: "/percepcoes", icon: Eye },
-  { title: "Assistente IA", url: "/assistente", icon: Bot },
-  { title: "Diagnóstico IA", url: "/diagnostico-ia", icon: Camera },
-  { title: "Catálogo de Plantas", url: "/catalogo", icon: Leaf },
-  { title: "Adubação", url: "/adubacao", icon: Beaker },
-  { title: "Calendário", url: "/calendario", icon: Calendar },
-  { title: "Diagnóstico Manual", url: "/diagnostico", icon: Stethoscope },
-  { title: "Planejamento", url: "/planejamento", icon: ClipboardList },
-  { title: "Dicas e Sugestões", url: "/dicas", icon: Lightbulb },
-  { title: "E-book", url: "/ebook", icon: BookOpen },
-];
+const NAV_ITEMS = [
+  { label: "Meu Jardim", path: "/meu-jardim", Icon: TreeDeciduous },
+  { label: "Dashboard IA", path: "/dashboard", Icon: Activity },
+  { label: "Percepções", path: "/percepcoes", Icon: Eye },
+  { label: "Assistente IA", path: "/assistente", Icon: Bot },
+  { label: "Diagnóstico IA", path: "/diagnostico-ia", Icon: Camera },
+  { label: "Catálogo de Plantas", path: "/catalogo", Icon: Leaf },
+  { label: "Adubação", path: "/adubacao", Icon: Beaker },
+  { label: "Calendário", path: "/calendario", Icon: Calendar },
+  { label: "Diagnóstico Manual", path: "/diagnostico", Icon: Stethoscope },
+  { label: "Planejamento", path: "/planejamento", Icon: ClipboardList },
+  { label: "Dicas e Sugestões", path: "/dicas", Icon: Lightbulb },
+  { label: "E-book", path: "/ebook", Icon: BookOpen },
+] as const;
 
 export function GardenSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -82,17 +82,17 @@ export function GardenSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-2 space-y-1 scroll-thin overflow-y-auto">
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
-              key={item.url}
-              to={item.url}
-              end={item.url === "/meu-jardim"}
+              key={item.path}
+              to={item.path}
+              end={item.path === "/meu-jardim"}
               className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/15 hover:text-sidebar-foreground transition-all duration-200 border-l-[3px] border-transparent"
               activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
               onClick={() => setMobileOpen(false)}
             >
-              <item.icon className="w-[18px] h-[18px] shrink-0" />
-              <span>{item.title}</span>
+              <item.Icon className="w-[18px] h-[18px] shrink-0" />
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
