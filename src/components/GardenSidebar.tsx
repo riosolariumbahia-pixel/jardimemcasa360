@@ -86,7 +86,7 @@ export function GardenSidebar() {
             <NavLink
               key={item.url}
               to={item.url}
-              end={item.url === "/"}
+              end={item.url === "/meu-jardim"}
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/15 hover:text-sidebar-foreground transition-all duration-200 border-l-[3px] border-transparent"
               activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
               onClick={() => setMobileOpen(false)}
