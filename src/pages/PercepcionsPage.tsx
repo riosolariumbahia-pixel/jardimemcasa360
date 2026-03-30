@@ -6,6 +6,8 @@ import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { useAnuncios } from "@/hooks/useAnuncios";
+import AnuncioCard from "@/components/AnuncioCard";
 
 type StatusGeral = "bom" | "atencao" | "critico";
 type ChatMsg = { role: "user" | "assistant"; content: string };
