@@ -17,12 +17,69 @@ interface DiagnosisResult {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+const MAX_IMAGE_DIMENSION = 1400;
+const IMAGE_QUALITY = 0.75;
+
+/**
+ * Resize and compress image on client to reduce payload for mobile.
+ * Returns a clean base64 string (no data URI prefix).
+ */
+function optimizeImage(file: File): Promise<{ base64: string; previewUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Não consegui ler a imagem."));
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const img = new Image();
+      img.onerror = () => reject(new Error("Não consegui processar a imagem."));
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Only resize if larger than max
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+          if (width > height) {
+            height = Math.round(height * (MAX_IMAGE_DIMENSION / width));
+            width = MAX_IMAGE_DIMENSION;
+          } else {
+            width = Math.round(width * (MAX_IMAGE_DIMENSION / height));
+            height = MAX_IMAGE_DIMENSION;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Não consegui preparar a foto para análise."));
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try WebP first, fall back to JPEG
+        let mimeType = "image/webp";
+        let compressed = canvas.toDataURL(mimeType, IMAGE_QUALITY);
+        // Some browsers don't support WebP encoding — check if it actually produced WebP
+        if (!compressed.startsWith("data:image/webp")) {
+          mimeType = "image/jpeg";
+          compressed = canvas.toDataURL(mimeType, IMAGE_QUALITY);
+        }
+
+        const base64 = compressed.split(",")[1];
+        if (!base64) return reject(new Error("Não consegui comprimir a imagem."));
+
+        resolve({ base64, previewUrl: compressed });
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function DiagnosisAIPage() {
   const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -38,8 +95,8 @@ export default function DiagnosisAIPage() {
     }).catch(() => setHasCamera(false));
   }, []);
 
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/") && !file.name.toLowerCase().endsWith(".heic")) {
       toast.error("Selecione uma imagem válida");
       return;
     }
@@ -47,14 +104,20 @@ export default function DiagnosisAIPage() {
       toast.error("A imagem deve ter no máximo 10MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setImagePreview(dataUrl);
-      setImageBase64(dataUrl.split(",")[1]);
-      setResult(null);
-    };
-    reader.readAsDataURL(file);
+
+    setIsProcessingImage(true);
+    setResult(null);
+    try {
+      const { base64, previewUrl } = await optimizeImage(file);
+      setImagePreview(previewUrl);
+      setImageBase64(base64);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao carregar imagem. Tente novamente.");
+      setImagePreview(null);
+      setImageBase64(null);
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const analyze = async () => {
@@ -63,11 +126,21 @@ export default function DiagnosisAIPage() {
     setResult(null);
 
     try {
+      // Use authenticated token when available
+      let authToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (user) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.access_token) {
+          authToken = data.session.access_token;
+        }
+      }
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           mode: "diagnosis",
@@ -76,9 +149,15 @@ export default function DiagnosisAIPage() {
         }),
       });
 
-      if (!resp.ok) throw new Error("Erro no diagnóstico");
+      if (!resp.ok) {
+        if (resp.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
+        if (resp.status === 402) throw new Error("Créditos de IA esgotados.");
+        throw new Error("Não consegui analisar sua planta agora. Tente novamente.");
+      }
 
-      const reader = resp.body!.getReader();
+      if (!resp.body) throw new Error("Resposta vazia do servidor.");
+
+      const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let full = "";
       let textBuffer = "";
@@ -87,11 +166,14 @@ export default function DiagnosisAIPage() {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, idx);
-          textBuffer = textBuffer.slice(idx + 1);
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
           if (line.endsWith("\r")) line = line.slice(0, -1);
+          // Skip keep-alive comments and empty lines (same as AssistantPage)
+          if (line.startsWith(":") || line.trim() === "") continue;
           if (!line.startsWith("data: ")) continue;
           const jsonStr = line.slice(6).trim();
           if (jsonStr === "[DONE]") break;
@@ -99,8 +181,16 @@ export default function DiagnosisAIPage() {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) full += content;
-          } catch {}
+          } catch {
+            // Incomplete JSON chunk — put the line back and wait for more data
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
         }
+      }
+
+      if (!full.trim()) {
+        throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
 
       // Try to parse JSON from response
@@ -129,7 +219,7 @@ export default function DiagnosisAIPage() {
         });
       }
     } catch (e: any) {
-      toast.error(e.message || "Erro ao analisar imagem");
+      toast.error(e.message || "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -161,7 +251,7 @@ export default function DiagnosisAIPage() {
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }}
           />
           {/* Gallery input */}
           <input
@@ -169,10 +259,15 @@ export default function DiagnosisAIPage() {
             type="file"
             accept="image/*,.heic"
             className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }}
           />
 
-          {imagePreview ? (
+          {isProcessingImage ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Preparando imagem...</p>
+            </div>
+          ) : imagePreview ? (
             <div className="relative">
               <img src={imagePreview} alt="Planta" className="w-full max-h-80 object-contain rounded-xl border border-border" />
               <button
@@ -213,7 +308,7 @@ export default function DiagnosisAIPage() {
             <Button onClick={analyze} disabled={isAnalyzing} className="w-full" size="lg">
               {isAnalyzing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando com IA...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando sua planta...
                 </>
               ) : (
               <><Sparkles className="w-4 h-4 mr-2" /> Analisar imagem</>
