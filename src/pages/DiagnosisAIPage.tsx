@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from "react";
-import { Camera, ImagePlus, Loader2, AlertTriangle, CheckCircle, HelpCircle, Sparkles, X, MessageCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Camera, CheckCircle, HelpCircle, ImagePlus, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
+import { supabase } from "@/integrations/supabase/client";
+import { optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
+import { toast } from "sonner";
 
 interface DiagnosisResult {
   problema: string;
@@ -17,61 +18,112 @@ interface DiagnosisResult {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-const MAX_IMAGE_DIMENSION = 1400;
-const IMAGE_QUALITY = 0.75;
 
-/**
- * Resize and compress image on client to reduce payload for mobile.
- * Returns a clean base64 string (no data URI prefix).
- */
-function optimizeImage(file: File): Promise<{ base64: string; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Não consegui ler a imagem."));
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const img = new Image();
-      img.onerror = () => reject(new Error("Não consegui processar a imagem."));
-      img.onload = () => {
-        let { width, height } = img;
+function extractDiagnosisResult(rawResponse: string): DiagnosisResult | null {
+  const cleanedResponse = rawResponse.replace(/```json/gi, "```").replace(/```/g, "").trim();
+  const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
 
-        // Only resize if larger than max
-        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-          if (width > height) {
-            height = Math.round(height * (MAX_IMAGE_DIMENSION / width));
-            width = MAX_IMAGE_DIMENSION;
-          } else {
-            width = Math.round(width * (MAX_IMAGE_DIMENSION / height));
-            height = MAX_IMAGE_DIMENSION;
-          }
+  if (!jsonMatch) {
+    return null;
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]) as Partial<DiagnosisResult> & { confidence?: number };
+  const gravidade = parsed.gravidade === "baixa" || parsed.gravidade === "media" || parsed.gravidade === "alta"
+    ? parsed.gravidade
+    : "media";
+  const confianca = Number(parsed.confianca ?? parsed.confidence ?? 0.5);
+
+  return {
+    problema: String(parsed.problema ?? "Diagnóstico inconclusivo"),
+    causa: String(parsed.causa ?? "Não foi possível identificar a causa com segurança."),
+    acao: String(parsed.acao ?? "Tente novamente com uma foto mais nítida e próxima."),
+    confianca: Number.isFinite(confianca) ? Math.min(Math.max(confianca, 0), 1) : 0.5,
+    gravidade,
+  };
+}
+
+function buildFallbackResult(rawResponse: string): DiagnosisResult {
+  const cleanedResponse = rawResponse.trim();
+
+  return {
+    problema: cleanedResponse.slice(0, 200) || "Não consegui concluir o diagnóstico com segurança.",
+    causa: "A resposta da IA veio em formato parcial ou diferente do esperado.",
+    acao: cleanedResponse.slice(200) || "Tente novamente com uma foto mais nítida e próxima.",
+    confianca: 0.5,
+    gravidade: "media",
+  };
+}
+
+async function readDiagnosisStream(response: Response) {
+  if (!response.body) {
+    throw new Error("Resposta inválida da IA.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullResponse = "";
+  let textBuffer = "";
+
+  const processLine = (line: string) => {
+    if (line.startsWith(":") || line.trim() === "") return false;
+    if (!line.startsWith("data: ")) return false;
+
+    const jsonStr = line.slice(6).trim();
+    if (jsonStr === "[DONE]") return true;
+
+    const parsed = JSON.parse(jsonStr);
+    const errorMessage = parsed?.error?.message || parsed?.error;
+    if (typeof errorMessage === "string" && errorMessage.trim()) {
+      throw new Error(errorMessage);
+    }
+
+    const content = parsed?.choices?.[0]?.delta?.content;
+    if (content) {
+      fullResponse += content;
+    }
+
+    return false;
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    textBuffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+    let newlineIndex: number;
+    while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+      let line = textBuffer.slice(0, newlineIndex);
+      textBuffer = textBuffer.slice(newlineIndex + 1);
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+
+      try {
+        if (processLine(line)) {
+          return fullResponse;
+        }
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          textBuffer = `${line}\n${textBuffer}`;
+          break;
         }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Não consegui preparar a foto para análise."));
+        throw error;
+      }
+    }
 
-        ctx.drawImage(img, 0, 0, width, height);
+    if (done) break;
+  }
 
-        // Try WebP first, fall back to JPEG
-        let mimeType = "image/webp";
-        let compressed = canvas.toDataURL(mimeType, IMAGE_QUALITY);
-        // Some browsers don't support WebP encoding — check if it actually produced WebP
-        if (!compressed.startsWith("data:image/webp")) {
-          mimeType = "image/jpeg";
-          compressed = canvas.toDataURL(mimeType, IMAGE_QUALITY);
-        }
+  const remainingLine = textBuffer.trim();
+  if (remainingLine) {
+    try {
+      processLine(remainingLine);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        throw error;
+      }
+    }
+  }
 
-        const base64 = compressed.split(",")[1];
-        if (!base64) return reject(new Error("Não consegui comprimir a imagem."));
-
-        resolve({ base64, previewUrl: compressed });
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  });
+  return fullResponse;
 }
 
 export default function DiagnosisAIPage() {
@@ -80,6 +132,7 @@ export default function DiagnosisAIPage() {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -90,43 +143,57 @@ export default function DiagnosisAIPage() {
       setHasCamera(false);
       return;
     }
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      setHasCamera(devices.some((d) => d.kind === "videoinput"));
-    }).catch(() => setHasCamera(false));
+
+    navigator.mediaDevices.enumerateDevices()
+      .then((devices) => setHasCamera(devices.some((device) => device.kind === "videoinput")))
+      .catch(() => setHasCamera(false));
   }, []);
 
-  const handleFile = async (file: File) => {
-    if (!file.type.startsWith("image/") && !file.name.toLowerCase().endsWith(".heic")) {
-      toast.error("Selecione uma imagem válida");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 10MB");
-      return;
-    }
+  useEffect(() => {
+    return () => revokePreviewUrl(imagePreview);
+  }, [imagePreview]);
 
+  const clearSelection = () => {
+    setImagePreview(null);
+    setImageBase64(null);
+    setResult(null);
+  };
+
+  const resetFlow = () => {
+    clearSelection();
+    setAnalysisError(null);
+  };
+
+  const handleFile = async (file: File) => {
     setIsProcessingImage(true);
     setResult(null);
+    setAnalysisError(null);
+
     try {
-      const { base64, previewUrl } = await optimizeImage(file);
+      const { base64, previewUrl } = await optimizeImageForDiagnosis(file);
       setImagePreview(previewUrl);
       setImageBase64(base64);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar imagem. Tente novamente.");
-      setImagePreview(null);
-      setImageBase64(null);
+    } catch (error: any) {
+      const message = error?.message || "Erro ao carregar imagem. Tente novamente.";
+      clearSelection();
+      setAnalysisError(message);
+      toast.error(message);
     } finally {
       setIsProcessingImage(false);
     }
   };
 
   const analyze = async () => {
-    if (!imageBase64) return;
+    if (!imageBase64 || isAnalyzing) return;
+
     setIsAnalyzing(true);
     setResult(null);
+    setAnalysisError(null);
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
 
     try {
-      // Use authenticated token when available
       let authToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       if (user) {
         const { data } = await supabase.auth.getSession();
@@ -135,13 +202,14 @@ export default function DiagnosisAIPage() {
         }
       }
 
-      const resp = await fetch(CHAT_URL, {
+      const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
+        signal: controller.signal,
         body: JSON.stringify({
           mode: "diagnosis",
           imageBase64,
@@ -149,78 +217,39 @@ export default function DiagnosisAIPage() {
         }),
       });
 
-      if (!resp.ok) {
-        if (resp.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
-        if (resp.status === 402) throw new Error("Créditos de IA esgotados.");
-        throw new Error("Não consegui analisar sua planta agora. Tente novamente.");
-      }
-
-      if (!resp.body) throw new Error("Resposta vazia do servidor.");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-      let textBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          // Skip keep-alive comments and empty lines (same as AssistantPage)
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) full += content;
-          } catch {
-            // Incomplete JSON chunk — put the line back and wait for more data
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
-
-      if (!full.trim()) {
+      if (!response.ok) {
+        if (response.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
+        if (response.status === 402) throw new Error("Créditos de IA esgotados.");
         throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
 
-      // Try to parse JSON from response
-      const jsonMatch = full.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as DiagnosisResult;
-        setResult(parsed);
+      const fullResponse = await readDiagnosisStream(response);
+      if (!fullResponse.trim()) {
+        throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
+      }
 
-        // Save to DB
-        if (user) {
-          supabase.from("analises_imagem" as any).insert({
-            user_id: user.id,
-            image_url: "local-upload",
-            ai_result: parsed,
-            confidence: parsed.confianca,
-          }).then(() => {});
-        }
-      } else {
-        // AI returned text, not JSON - show as generic result
-        setResult({
-          problema: full.slice(0, 200),
-          causa: "Análise baseada na imagem enviada",
-          acao: full.slice(200) || "Consulte um especialista para confirmação",
-          confianca: 0.5,
-          gravidade: "media",
+      const parsedResult = extractDiagnosisResult(fullResponse) || buildFallbackResult(fullResponse);
+      setResult(parsedResult);
+
+      if (user) {
+        void supabase.from("analises_imagem" as any).insert({
+          user_id: user.id,
+          image_url: "local-upload",
+          ai_result: parsedResult,
+          confidence: parsedResult.confianca,
         });
       }
-    } catch (e: any) {
-      toast.error(e.message || "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
+    } catch (error: any) {
+      const message = error?.name === "AbortError"
+        ? "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima."
+        : error instanceof TypeError
+          ? "Falha de conexão ao enviar a foto. Tente novamente."
+          : error?.message || "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.";
+
+      setAnalysisError(message);
+      toast.error(message);
     } finally {
+      window.clearTimeout(timeoutId);
       setIsAnalyzing(false);
     }
   };
@@ -244,22 +273,27 @@ export default function DiagnosisAIPage() {
 
       <Card>
         <CardContent className="p-6 space-y-4">
-          {/* Camera input */}
           <input
             ref={cameraRef}
             type="file"
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }}
+            onChange={(event) => {
+              if (event.target.files?.[0]) handleFile(event.target.files[0]);
+              event.target.value = "";
+            }}
           />
-          {/* Gallery input */}
+
           <input
             ref={galleryRef}
             type="file"
-            accept="image/*,.heic"
+            accept="image/*,.heic,.heif"
             className="hidden"
-            onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }}
+            onChange={(event) => {
+              if (event.target.files?.[0]) handleFile(event.target.files[0]);
+              event.target.value = "";
+            }}
           />
 
           {isProcessingImage ? (
@@ -269,9 +303,9 @@ export default function DiagnosisAIPage() {
             </div>
           ) : imagePreview ? (
             <div className="relative">
-              <img src={imagePreview} alt="Planta" className="w-full max-h-80 object-contain rounded-xl border border-border" />
+              <img src={imagePreview} alt="Pré-visualização da planta para diagnóstico" className="w-full max-h-80 object-contain rounded-xl border border-border" />
               <button
-                onClick={() => { setImagePreview(null); setImageBase64(null); setResult(null); }}
+                onClick={resetFlow}
                 className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 shadow-md hover:bg-background transition-colors"
                 title="Remover imagem"
               >
@@ -292,6 +326,7 @@ export default function DiagnosisAIPage() {
                     <span className="text-xs text-muted-foreground">Usar câmera do dispositivo</span>
                   </button>
                 )}
+
                 <button
                   onClick={() => galleryRef.current?.click()}
                   className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
@@ -305,15 +340,21 @@ export default function DiagnosisAIPage() {
           )}
 
           {imagePreview && !result && (
-            <Button onClick={analyze} disabled={isAnalyzing} className="w-full" size="lg">
+            <Button onClick={analyze} disabled={isAnalyzing || isProcessingImage || !imageBase64} className="w-full" size="lg">
               {isAnalyzing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando sua planta...
                 </>
               ) : (
-              <><Sparkles className="w-4 h-4 mr-2" /> Analisar imagem</>
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" /> Analisar imagem
+                </>
               )}
             </Button>
+          )}
+
+          {analysisError && (
+            <p className="text-sm text-destructive">{analysisError}</p>
           )}
         </CardContent>
       </Card>
@@ -325,11 +366,12 @@ export default function DiagnosisAIPage() {
               <div className="flex items-center justify-between">
                 <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
                 {(() => {
-                  const g = gravityConfig[result.gravidade] || gravityConfig.media;
-                  const Icon = g.icon;
+                  const gravity = gravityConfig[result.gravidade] || gravityConfig.media;
+                  const Icon = gravity.icon;
+
                   return (
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${g.bg} ${g.color}`}>
-                      <Icon className="w-3 h-3" /> {g.label}
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${gravity.bg} ${gravity.color}`}>
+                      <Icon className="w-3 h-3" /> {gravity.label}
                     </span>
                   );
                 })()}
@@ -363,7 +405,7 @@ export default function DiagnosisAIPage() {
                 </div>
               </div>
 
-              <Button variant="outline" onClick={() => { setResult(null); setImagePreview(null); setImageBase64(null); }} className="w-full">
+              <Button variant="outline" onClick={resetFlow} className="w-full">
                 Analisar outra planta
               </Button>
             </CardContent>
