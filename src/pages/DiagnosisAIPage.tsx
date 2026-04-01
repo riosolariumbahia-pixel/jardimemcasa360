@@ -186,7 +186,7 @@ async function readDiagnosisResponse(response: Response) {
   return readDiagnosisStream(response);
 }
 
-export default function DiagnosisAIPage() {
+function DiagnosisAIPageInner() {
   const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
