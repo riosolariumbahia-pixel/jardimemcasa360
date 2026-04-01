@@ -75,6 +75,7 @@ Regras especiais:
     }
 
     const model = imageBase64 ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview";
+    const shouldStream = mode !== "diagnosis";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -85,7 +86,7 @@ Regras especiais:
       body: JSON.stringify({
         model,
         messages: aiMessages,
-        stream: true,
+        stream: shouldStream,
       }),
     });
 
@@ -106,6 +107,23 @@ Regras especiais:
       console.error("AI gateway error:", response.status, t);
       return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!shouldStream) {
+      const payload = await response.json();
+      const content = payload?.choices?.[0]?.message?.content;
+
+      if (typeof content !== "string" || !content.trim()) {
+        console.error("AI diagnosis empty response:", payload);
+        return new Response(JSON.stringify({ error: "Resposta vazia da IA para o diagnóstico." }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

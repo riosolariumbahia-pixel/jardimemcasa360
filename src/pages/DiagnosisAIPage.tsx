@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
-import { optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
+import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
 import { toast } from "sonner";
 
 interface DiagnosisResult {
@@ -20,26 +20,30 @@ interface DiagnosisResult {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 function extractDiagnosisResult(rawResponse: string): DiagnosisResult | null {
-  const cleanedResponse = rawResponse.replace(/```json/gi, "```").replace(/```/g, "").trim();
-  const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+  try {
+    const cleanedResponse = rawResponse.replace(/```json/gi, "```").replace(/```/g, "").trim();
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
 
-  if (!jsonMatch) {
+    if (!jsonMatch) {
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<DiagnosisResult> & { confidence?: number };
+    const gravidade = parsed.gravidade === "baixa" || parsed.gravidade === "media" || parsed.gravidade === "alta"
+      ? parsed.gravidade
+      : "media";
+    const confianca = Number(parsed.confianca ?? parsed.confidence ?? 0.5);
+
+    return {
+      problema: String(parsed.problema ?? "Diagnóstico inconclusivo"),
+      causa: String(parsed.causa ?? "Não foi possível identificar a causa com segurança."),
+      acao: String(parsed.acao ?? "Tente novamente com uma foto mais nítida e próxima."),
+      confianca: Number.isFinite(confianca) ? Math.min(Math.max(confianca, 0), 1) : 0.5,
+      gravidade,
+    };
+  } catch {
     return null;
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as Partial<DiagnosisResult> & { confidence?: number };
-  const gravidade = parsed.gravidade === "baixa" || parsed.gravidade === "media" || parsed.gravidade === "alta"
-    ? parsed.gravidade
-    : "media";
-  const confianca = Number(parsed.confianca ?? parsed.confidence ?? 0.5);
-
-  return {
-    problema: String(parsed.problema ?? "Diagnóstico inconclusivo"),
-    causa: String(parsed.causa ?? "Não foi possível identificar a causa com segurança."),
-    acao: String(parsed.acao ?? "Tente novamente com uma foto mais nítida e próxima."),
-    confianca: Number.isFinite(confianca) ? Math.min(Math.max(confianca, 0), 1) : 0.5,
-    gravidade,
-  };
 }
 
 function buildFallbackResult(rawResponse: string): DiagnosisResult {
@@ -126,15 +130,38 @@ async function readDiagnosisStream(response: Response) {
   return fullResponse;
 }
 
+async function readDiagnosisResponse(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const payload = await response.json().catch(() => null);
+    const errorMessage = payload?.error || payload?.message;
+
+    if (typeof errorMessage === "string" && errorMessage.trim()) {
+      throw new Error(errorMessage);
+    }
+
+    const content = typeof payload?.content === "string"
+      ? payload.content
+      : typeof payload?.response === "string"
+        ? payload.response
+        : "";
+
+    return content;
+  }
+
+  return readDiagnosisStream(response);
+}
+
 export default function DiagnosisAIPage() {
   const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
+  const imageBlobRef = useRef<Blob | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -154,8 +181,9 @@ export default function DiagnosisAIPage() {
   }, [imagePreview]);
 
   const clearSelection = () => {
+    revokePreviewUrl(imagePreview);
+    imageBlobRef.current = null;
     setImagePreview(null);
-    setImageBase64(null);
     setResult(null);
   };
 
@@ -170,11 +198,13 @@ export default function DiagnosisAIPage() {
     setAnalysisError(null);
 
     try {
-      const { base64, previewUrl } = await optimizeImageForDiagnosis(file);
+      revokePreviewUrl(imagePreview);
+      const { blob, previewUrl } = await optimizeImageForDiagnosis(file);
+      imageBlobRef.current = blob;
       setImagePreview(previewUrl);
-      setImageBase64(base64);
     } catch (error: any) {
       const message = error?.message || "Erro ao carregar imagem. Tente novamente.";
+      imageBlobRef.current = null;
       clearSelection();
       setAnalysisError(message);
       toast.error(message);
@@ -184,16 +214,17 @@ export default function DiagnosisAIPage() {
   };
 
   const analyze = async () => {
-    if (!imageBase64 || isAnalyzing) return;
+    if (!imageBlobRef.current || isAnalyzing) return;
 
     setIsAnalyzing(true);
     setResult(null);
     setAnalysisError(null);
 
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+    const timeoutId = window.setTimeout(() => controller.abort(), 90000);
 
     try {
+      const imageBase64 = await encodeDiagnosisImageToBase64(imageBlobRef.current);
       let authToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       if (user) {
         const { data } = await supabase.auth.getSession();
@@ -223,7 +254,7 @@ export default function DiagnosisAIPage() {
         throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
 
-      const fullResponse = await readDiagnosisStream(response);
+      const fullResponse = await readDiagnosisResponse(response);
       if (!fullResponse.trim()) {
         throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
@@ -237,7 +268,7 @@ export default function DiagnosisAIPage() {
           image_url: "local-upload",
           ai_result: parsedResult,
           confidence: parsedResult.confianca,
-        });
+        }).then(() => undefined, () => undefined);
       }
     } catch (error: any) {
       const message = error?.name === "AbortError"
@@ -340,7 +371,7 @@ export default function DiagnosisAIPage() {
           )}
 
           {imagePreview && !result && (
-            <Button onClick={analyze} disabled={isAnalyzing || isProcessingImage || !imageBase64} className="w-full" size="lg">
+            <Button onClick={analyze} disabled={isAnalyzing || isProcessingImage || !imagePreview} className="w-full" size="lg">
               {isAnalyzing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando sua planta...
@@ -425,9 +456,11 @@ function PostDiagnosticAd() {
   if (!anuncios || anuncios.length === 0) return null;
 
   const ad = anuncios[0];
+  if (!ad?.anunciantes?.nome) return null;
+
   const handleClick = () => {
     registrarClique(ad.id);
-    window.open(ad.link_whatsapp, "_blank");
+    window.open(ad.link_whatsapp, "_blank", "noopener,noreferrer");
   };
 
   return (
