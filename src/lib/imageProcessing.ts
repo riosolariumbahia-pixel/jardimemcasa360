@@ -1,12 +1,15 @@
 const MAX_DIAGNOSIS_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_DIAGNOSIS_IMAGE_DIMENSION = 1280;
-const DIAGNOSIS_IMAGE_QUALITY = 0.72;
+const MAX_DIAGNOSIS_IMAGE_DIMENSION = 1024;
+const MAX_DIAGNOSIS_IMAGE_BYTES = 550 * 1024;
+const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.7;
+const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.45;
+const QUALITY_STEP = 0.08;
 const PREFERRED_MIME_TYPE = "image/webp";
 const FALLBACK_MIME_TYPE = "image/jpeg";
 const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
 export type OptimizedDiagnosisImage = {
-  base64: string;
+  blob: Blob;
   previewUrl: string;
 };
 
@@ -43,24 +46,10 @@ export async function optimizeImageForDiagnosis(file: File): Promise<OptimizedDi
     context.fillRect(0, 0, targetWidth, targetHeight);
     context.drawImage(source, 0, 0, targetWidth, targetHeight);
 
-    let blob = await canvasToBlob(canvas, PREFERRED_MIME_TYPE, DIAGNOSIS_IMAGE_QUALITY);
-    if (!blob || blob.size === 0 || blob.type !== PREFERRED_MIME_TYPE) {
-      blob = await canvasToBlob(canvas, FALLBACK_MIME_TYPE, DIAGNOSIS_IMAGE_QUALITY);
-    }
-
-    if (!blob || blob.size === 0) {
-      throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
-    }
-
-    const dataUrl = await blobToDataUrl(blob);
-    const base64 = dataUrl.split(",")[1];
-
-    if (!base64) {
-      throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
-    }
+    const blob = await createOptimizedBlob(canvas);
 
     return {
-      base64,
+      blob,
       previewUrl: URL.createObjectURL(blob),
     };
   } finally {
@@ -72,6 +61,17 @@ export function revokePreviewUrl(previewUrl: string | null) {
   if (previewUrl?.startsWith("blob:")) {
     URL.revokeObjectURL(previewUrl);
   }
+}
+
+export async function encodeDiagnosisImageToBase64(blob: Blob) {
+  const dataUrl = await blobToDataUrl(blob);
+  const base64 = dataUrl.split(",")[1];
+
+  if (!base64) {
+    throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
+  }
+
+  return base64;
 }
 
 function getTargetDimensions(width: number, height: number) {
@@ -90,6 +90,25 @@ function getTargetDimensions(width: number, height: number) {
     targetWidth: Math.max(1, Math.round(width * (MAX_DIAGNOSIS_IMAGE_DIMENSION / height))),
     targetHeight: MAX_DIAGNOSIS_IMAGE_DIMENSION,
   };
+}
+
+async function createOptimizedBlob(canvas: HTMLCanvasElement) {
+  for (const type of [PREFERRED_MIME_TYPE, FALLBACK_MIME_TYPE]) {
+    for (let quality = INITIAL_DIAGNOSIS_IMAGE_QUALITY; quality >= MIN_DIAGNOSIS_IMAGE_QUALITY; quality -= QUALITY_STEP) {
+      const normalizedQuality = Number(quality.toFixed(2));
+      const blob = await canvasToBlob(canvas, type, normalizedQuality);
+
+      if (!blob || blob.size === 0) {
+        continue;
+      }
+
+      if (blob.size <= MAX_DIAGNOSIS_IMAGE_BYTES || normalizedQuality <= MIN_DIAGNOSIS_IMAGE_QUALITY) {
+        return blob;
+      }
+    }
+  }
+
+  throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
 }
 
 async function loadImageSource(file: File): Promise<{
