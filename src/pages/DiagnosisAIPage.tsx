@@ -509,3 +509,11 @@ function PostDiagnosticAd() {
     </Card>
   );
 }
+
+export default function DiagnosisAIPage() {
+  return (
+    <DiagnosisErrorBoundary>
+      <DiagnosisAIPageInner />
+    </DiagnosisErrorBoundary>
+  );
+}
