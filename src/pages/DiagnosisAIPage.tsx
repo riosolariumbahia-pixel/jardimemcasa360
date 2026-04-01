@@ -268,7 +268,7 @@ export default function DiagnosisAIPage() {
           image_url: "local-upload",
           ai_result: parsedResult,
           confidence: parsedResult.confianca,
-        }).then(() => undefined).catch(() => undefined);
+        }).then(() => undefined, () => undefined);
       }
     } catch (error: any) {
       const message = error?.name === "AbortError"
