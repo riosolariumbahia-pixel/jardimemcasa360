@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Camera, CheckCircle, HelpCircle, ImagePlus, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { AlertTriangle, Camera, CheckCircle, HelpCircle, ImagePlus, Loader2, MessageCircle, RefreshCw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +8,39 @@ import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
 import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
 import { toast } from "sonner";
+
+class DiagnosisErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.error("DiagnosisAIPage crash:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-2xl mx-auto p-6 text-center space-y-4">
+          <AlertTriangle className="w-12 h-12 text-destructive mx-auto" />
+          <h2 className="font-heading font-bold text-foreground">Algo deu errado</h2>
+          <p className="text-sm text-muted-foreground">
+            Ocorreu um erro inesperado no diagnóstico. Tente novamente.
+          </p>
+          <Button onClick={() => this.setState({ hasError: false })} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" /> Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface DiagnosisResult {
   problema: string;
@@ -153,7 +186,7 @@ async function readDiagnosisResponse(response: Response) {
   return readDiagnosisStream(response);
 }
 
-export default function DiagnosisAIPage() {
+function DiagnosisAIPageInner() {
   const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -474,5 +507,13 @@ function PostDiagnosticAd() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+export default function DiagnosisAIPage() {
+  return (
+    <DiagnosisErrorBoundary>
+      <DiagnosisAIPageInner />
+    </DiagnosisErrorBoundary>
   );
 }

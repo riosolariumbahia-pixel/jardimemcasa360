@@ -111,13 +111,19 @@ async function createOptimizedBlob(canvas: HTMLCanvasElement) {
   throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
 }
 
+function isMobileDevice() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
 async function loadImageSource(file: File): Promise<{
   source: CanvasImageSource;
   width: number;
   height: number;
   cleanup: () => void;
 }> {
-  if (typeof createImageBitmap === "function") {
+  // On mobile, always use HTMLImageElement — createImageBitmap has intermittent
+  // failures on iOS Safari (especially with imageOrientation) that crash the page.
+  if (!isMobileDevice() && typeof createImageBitmap === "function") {
     try {
       const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
 
