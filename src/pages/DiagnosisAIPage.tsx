@@ -2,7 +2,6 @@ import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, Camera, CheckCircle, HelpCircle, ImagePlus, Loader2, MessageCircle, RefreshCw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +37,29 @@ class DiagnosisErrorBoundary extends Component<{ children: ReactNode }, { hasErr
         </div>
       );
     }
+    return this.props.children;
+  }
+}
+
+class DiagnosisSectionBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.error("Diagnosis section crash:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
     return this.props.children;
   }
 }
@@ -88,6 +110,23 @@ function buildFallbackResult(rawResponse: string): DiagnosisResult {
     acao: cleanedResponse.slice(200) || "Tente novamente com uma foto mais nítida e próxima.",
     confianca: 0.5,
     gravidade: "media",
+  };
+}
+
+function sanitizeDiagnosisText(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+}
+
+function normalizeDiagnosisResult(result: DiagnosisResult): DiagnosisResult {
+  return {
+    problema: sanitizeDiagnosisText(result.problema, "Não consegui identificar o problema com segurança."),
+    causa: sanitizeDiagnosisText(result.causa, "Não foi possível identificar a causa com segurança."),
+    acao: sanitizeDiagnosisText(result.acao, "Tente novamente com uma foto mais nítida e próxima."),
+    confianca: Number.isFinite(result.confianca) ? Math.min(Math.max(result.confianca, 0), 1) : 0.5,
+    gravidade: result.gravidade === "baixa" || result.gravidade === "media" || result.gravidade === "alta"
+      ? result.gravidade
+      : "media",
   };
 }
 
@@ -292,7 +331,7 @@ function DiagnosisAIPageInner() {
         throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
 
-      const parsedResult = extractDiagnosisResult(fullResponse) || buildFallbackResult(fullResponse);
+      const parsedResult = normalizeDiagnosisResult(extractDiagnosisResult(fullResponse) || buildFallbackResult(fullResponse));
       setResult(parsedResult);
 
       if (user) {
@@ -316,12 +355,6 @@ function DiagnosisAIPageInner() {
       window.clearTimeout(timeoutId);
       setIsAnalyzing(false);
     }
-  };
-
-  const gravityConfig = {
-    baixa: { color: "text-green-600", bg: "bg-green-50", icon: CheckCircle, label: "Baixa gravidade" },
-    media: { color: "text-yellow-600", bg: "bg-yellow-50", icon: AlertTriangle, label: "Gravidade média" },
-    alta: { color: "text-red-600", bg: "bg-red-50", icon: AlertTriangle, label: "Alta gravidade" },
   };
 
   return (
@@ -425,60 +458,93 @@ function DiagnosisAIPageInner() {
 
       {result && (
         <>
-          <Card className="animate-fade-in-up">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
-                {(() => {
-                  const gravity = gravityConfig[result.gravidade] || gravityConfig.media;
-                  const Icon = gravity.icon;
+          <DiagnosisSectionBoundary fallback={<DiagnosisResultFallback onReset={resetFlow} />}>
+            <DiagnosisResultCard result={result} onReset={resetFlow} />
+          </DiagnosisSectionBoundary>
 
-                  return (
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${gravity.bg} ${gravity.color}`}>
-                      <Icon className="w-3 h-3" /> {gravity.label}
-                    </span>
-                  );
-                })()}
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Confiança da IA</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={result.confianca * 100} className="flex-1" />
-                  <span className="text-sm font-medium">{Math.round(result.confianca * 100)}%</span>
-                </div>
-                {result.confianca < 0.6 && (
-                  <p className="text-xs text-yellow-600 flex items-center gap-1">
-                    <HelpCircle className="w-3 h-3" /> Não tenho certeza absoluta — considere consultar um especialista
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                  <p className="text-xs font-medium text-destructive mb-1">🔍 Problema identificado</p>
-                  <p className="text-sm text-foreground">{result.problema}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-100">
-                  <p className="text-xs font-medium text-yellow-700 mb-1">⚠️ Causa provável</p>
-                  <p className="text-sm text-foreground">{result.causa}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-green-50 border border-green-100">
-                  <p className="text-xs font-medium text-green-700 mb-1">✅ Ação recomendada</p>
-                  <p className="text-sm text-foreground">{result.acao}</p>
-                </div>
-              </div>
-
-              <Button variant="outline" onClick={resetFlow} className="w-full">
-                Analisar outra planta
-              </Button>
-            </CardContent>
-          </Card>
-
-          <PostDiagnosticAd />
+          <DiagnosisSectionBoundary fallback={null}>
+            <PostDiagnosticAd />
+          </DiagnosisSectionBoundary>
         </>
       )}
     </div>
+  );
+}
+
+function DiagnosisResultFallback({ onReset }: { onReset: () => void }) {
+  return (
+    <Card className="animate-fade-in-up">
+      <CardContent className="p-6 space-y-4">
+        <div className="space-y-1">
+          <h2 className="font-heading font-bold text-foreground">Diagnóstico concluído</h2>
+          <p className="text-sm text-muted-foreground">A análise foi gerada, mas houve uma falha ao exibir os detalhes nesta tela.</p>
+        </div>
+
+        <Button variant="outline" onClick={onReset} className="w-full">
+          Tentar outra foto
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiagnosisResultCard({ result, onReset }: { result: DiagnosisResult; onReset: () => void }) {
+  const gravityConfig = {
+    baixa: { icon: CheckCircle, label: "Baixa gravidade", badgeClassName: "bg-primary/10 text-primary" },
+    media: { icon: AlertTriangle, label: "Gravidade média", badgeClassName: "bg-secondary text-secondary-foreground" },
+    alta: { icon: AlertTriangle, label: "Alta gravidade", badgeClassName: "bg-destructive/10 text-destructive" },
+  } as const;
+
+  const gravity = gravityConfig[result.gravidade] || gravityConfig.media;
+  const Icon = gravity.icon;
+  const confidencePercent = Math.round(result.confianca * 100);
+
+  return (
+    <Card className="animate-fade-in-up">
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-heading font-bold text-foreground">Resultado do Diagnóstico</h2>
+          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${gravity.badgeClassName}`}>
+            <Icon className="h-3 w-3" />
+            {gravity.label}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <p className="text-xs text-muted-foreground">Confiança da IA</p>
+            <span className="font-medium text-foreground">{confidencePercent}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${confidencePercent}%` }} />
+          </div>
+          {result.confianca < 0.6 && (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <HelpCircle className="h-3 w-3" /> Não tenho certeza absoluta — considere consultar um especialista.
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-lg border border-destructive/10 bg-destructive/5 p-3">
+            <p className="mb-1 text-xs font-medium text-destructive">🔍 Problema identificado</p>
+            <p className="text-sm text-foreground">{result.problema}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <p className="mb-1 text-xs font-medium text-foreground">⚠️ Causa provável</p>
+            <p className="text-sm text-foreground">{result.causa}</p>
+          </div>
+          <div className="rounded-lg border border-primary/10 bg-primary/5 p-3">
+            <p className="mb-1 text-xs font-medium text-primary">✅ Ação recomendada</p>
+            <p className="text-sm text-foreground">{result.acao}</p>
+          </div>
+        </div>
+
+        <Button variant="outline" onClick={onReset} className="w-full">
+          Analisar outra planta
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
