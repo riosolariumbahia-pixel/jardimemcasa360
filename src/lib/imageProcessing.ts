@@ -1,11 +1,12 @@
 const MAX_DIAGNOSIS_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DIAGNOSIS_IMAGE_DIMENSION = 1024;
+const MIN_DIAGNOSIS_IMAGE_DIMENSION = 512;
 const MAX_DIAGNOSIS_IMAGE_BYTES = 550 * 1024;
-const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.7;
-const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.45;
+const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.72;
+const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.42;
 const QUALITY_STEP = 0.08;
-const PREFERRED_MIME_TYPE = "image/webp";
-const FALLBACK_MIME_TYPE = "image/jpeg";
+const RESIZE_STEP = 0.85;
+const OUTPUT_MIME_TYPE = "image/jpeg";
 const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
 export type OptimizedDiagnosisImage = {
@@ -93,22 +94,43 @@ function getTargetDimensions(width: number, height: number) {
 }
 
 async function createOptimizedBlob(canvas: HTMLCanvasElement) {
-  for (const type of [PREFERRED_MIME_TYPE, FALLBACK_MIME_TYPE]) {
-    for (let quality = INITIAL_DIAGNOSIS_IMAGE_QUALITY; quality >= MIN_DIAGNOSIS_IMAGE_QUALITY; quality -= QUALITY_STEP) {
-      const normalizedQuality = Number(quality.toFixed(2));
-      const blob = await canvasToBlob(canvas, type, normalizedQuality);
+  let workingCanvas = canvas;
 
-      if (!blob || blob.size === 0) {
-        continue;
-      }
+  while (true) {
+    const compressedBlob = await compressCanvas(workingCanvas);
 
-      if (blob.size <= MAX_DIAGNOSIS_IMAGE_BYTES || normalizedQuality <= MIN_DIAGNOSIS_IMAGE_QUALITY) {
-        return blob;
-      }
+    if (!compressedBlob) {
+      throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
+    }
+
+    const reachedMinSize = workingCanvas.width <= MIN_DIAGNOSIS_IMAGE_DIMENSION || workingCanvas.height <= MIN_DIAGNOSIS_IMAGE_DIMENSION;
+    if (compressedBlob.size <= MAX_DIAGNOSIS_IMAGE_BYTES || reachedMinSize) {
+      return compressedBlob;
+    }
+
+    workingCanvas = resizeCanvas(workingCanvas, RESIZE_STEP);
+  }
+}
+
+async function compressCanvas(canvas: HTMLCanvasElement) {
+  let smallestBlob: Blob | null = null;
+
+  for (let quality = INITIAL_DIAGNOSIS_IMAGE_QUALITY; quality >= MIN_DIAGNOSIS_IMAGE_QUALITY; quality -= QUALITY_STEP) {
+    const normalizedQuality = Number(quality.toFixed(2));
+    const blob = await canvasToBlob(canvas, OUTPUT_MIME_TYPE, normalizedQuality);
+
+    if (!blob || blob.size === 0) {
+      continue;
+    }
+
+    smallestBlob = blob;
+
+    if (blob.size <= MAX_DIAGNOSIS_IMAGE_BYTES) {
+      return blob;
     }
   }
 
-  throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
+  return smallestBlob;
 }
 
 function isMobileDevice() {
@@ -164,6 +186,23 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) 
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type, quality);
   });
+}
+
+function resizeCanvas(canvas: HTMLCanvasElement, scale: number) {
+  const resizedCanvas = document.createElement("canvas");
+  resizedCanvas.width = Math.max(MIN_DIAGNOSIS_IMAGE_DIMENSION, Math.round(canvas.width * scale));
+  resizedCanvas.height = Math.max(MIN_DIAGNOSIS_IMAGE_DIMENSION, Math.round(canvas.height * scale));
+
+  const context = resizedCanvas.getContext("2d", { alpha: false });
+  if (!context) {
+    return canvas;
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height);
+  context.drawImage(canvas, 0, 0, resizedCanvas.width, resizedCanvas.height);
+
+  return resizedCanvas;
 }
 
 function blobToDataUrl(blob: Blob) {
