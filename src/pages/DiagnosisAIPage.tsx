@@ -72,8 +72,6 @@ interface DiagnosisResult {
   gravidade: "baixa" | "media" | "alta";
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-
 function extractDiagnosisResult(rawResponse: string): DiagnosisResult | null {
   try {
     const cleanedResponse = rawResponse.replace(/```json/gi, "```").replace(/```/g, "").trim();
@@ -130,99 +128,56 @@ function normalizeDiagnosisResult(result: DiagnosisResult): DiagnosisResult {
   };
 }
 
-async function readDiagnosisStream(response: Response) {
-  if (!response.body) {
-    throw new Error("Resposta inválida da IA.");
+function getDiagnosisContent(payload: unknown) {
+  if (typeof payload === "string") {
+    return payload;
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullResponse = "";
-  let textBuffer = "";
+  if (payload && typeof payload === "object") {
+    const responsePayload = payload as { content?: unknown; response?: unknown; error?: unknown; message?: unknown };
 
-  const processLine = (line: string) => {
-    if (line.startsWith(":") || line.trim() === "") return false;
-    if (!line.startsWith("data: ")) return false;
-
-    const jsonStr = line.slice(6).trim();
-    if (jsonStr === "[DONE]") return true;
-
-    const parsed = JSON.parse(jsonStr);
-    const errorMessage = parsed?.error?.message || parsed?.error;
-    if (typeof errorMessage === "string" && errorMessage.trim()) {
-      throw new Error(errorMessage);
+    if (typeof responsePayload.error === "string" && responsePayload.error.trim()) {
+      throw new Error(responsePayload.error);
     }
 
-    const content = parsed?.choices?.[0]?.delta?.content;
-    if (content) {
-      fullResponse += content;
+    if (typeof responsePayload.message === "string" && responsePayload.message.trim()) {
+      throw new Error(responsePayload.message);
     }
 
-    return false;
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    textBuffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-
-    let newlineIndex: number;
-    while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-      let line = textBuffer.slice(0, newlineIndex);
-      textBuffer = textBuffer.slice(newlineIndex + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-
-      try {
-        if (processLine(line)) {
-          return fullResponse;
-        }
-      } catch (error) {
-        if (error instanceof SyntaxError) {
-          textBuffer = `${line}\n${textBuffer}`;
-          break;
-        }
-
-        throw error;
-      }
+    if (typeof responsePayload.content === "string") {
+      return responsePayload.content;
     }
 
-    if (done) break;
-  }
-
-  const remainingLine = textBuffer.trim();
-  if (remainingLine) {
-    try {
-      processLine(remainingLine);
-    } catch (error) {
-      if (!(error instanceof SyntaxError)) {
-        throw error;
-      }
+    if (typeof responsePayload.response === "string") {
+      return responsePayload.response;
     }
   }
 
-  return fullResponse;
+  return "";
 }
 
-async function readDiagnosisResponse(response: Response) {
-  const contentType = response.headers.get("content-type") || "";
+function getDiagnosisErrorMessage(error: unknown) {
+  const message = typeof error === "object" && error !== null
+    ? [
+        "message" in error ? error.message : null,
+        "context" in error && error.context && typeof error.context === "object" && "error" in error.context ? error.context.error : null,
+        "context" in error && error.context && typeof error.context === "object" && "message" in error.context ? error.context.message : null,
+      ].find((value) => typeof value === "string" && value.trim())
+    : null;
 
-  if (contentType.includes("application/json")) {
-    const payload = await response.json().catch(() => null);
-    const errorMessage = payload?.error || payload?.message;
-
-    if (typeof errorMessage === "string" && errorMessage.trim()) {
-      throw new Error(errorMessage);
-    }
-
-    const content = typeof payload?.content === "string"
-      ? payload.content
-      : typeof payload?.response === "string"
-        ? payload.response
-        : "";
-
-    return content;
+  if (typeof message !== "string") {
+    return null;
   }
 
-  return readDiagnosisStream(response);
+  if (message.includes("Créditos de IA esgotados")) {
+    return "Créditos de IA esgotados.";
+  }
+
+  if (message.includes("Limite de requisições excedido")) {
+    return "Muitas requisições. Aguarde alguns segundos.";
+  }
+
+  return message;
 }
 
 function DiagnosisAIPageInner() {
@@ -234,8 +189,6 @@ function DiagnosisAIPageInner() {
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
   const imageBlobRef = useRef<Blob | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -272,10 +225,12 @@ function DiagnosisAIPageInner() {
     try {
       revokePreviewUrl(imagePreview);
       const { blob, previewUrl } = await optimizeImageForDiagnosis(file);
+      console.info("Diagnosis image prepared", { size: blob.size, type: blob.type });
       imageBlobRef.current = blob;
       setImagePreview(previewUrl);
     } catch (error: any) {
       const message = error?.message || "Erro ao carregar imagem. Tente novamente.";
+      console.error("Diagnosis image processing error:", error);
       imageBlobRef.current = null;
       clearSelection();
       setAnalysisError(message);
@@ -292,41 +247,24 @@ function DiagnosisAIPageInner() {
     setResult(null);
     setAnalysisError(null);
 
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 90000);
-
     try {
       const imageBase64 = await encodeDiagnosisImageToBase64(imageBlobRef.current);
-      let authToken = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      if (user) {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.access_token) {
-          authToken = data.session.access_token;
-        }
-      }
+      console.info("Sending diagnosis request", { bytes: imageBlobRef.current.size, base64Length: imageBase64.length });
 
-      const response = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: {
           mode: "diagnosis",
           imageBase64,
           messages: [{ role: "user", content: "Analise esta planta e identifique possíveis problemas de saúde." }],
-        }),
+        },
       });
 
-      if (!response.ok) {
-        if (response.status === 429) throw new Error("Muitas requisições. Aguarde alguns segundos.");
-        if (response.status === 402) throw new Error("Créditos de IA esgotados.");
-        throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
+      if (error) {
+        console.error("Diagnosis AI invoke error:", error);
+        throw new Error(getDiagnosisErrorMessage(error) || "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
 
-      const fullResponse = await readDiagnosisResponse(response);
+      const fullResponse = getDiagnosisContent(data);
       if (!fullResponse.trim()) {
         throw new Error("Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.");
       }
@@ -343,16 +281,15 @@ function DiagnosisAIPageInner() {
         }).then(() => undefined, () => undefined);
       }
     } catch (error: any) {
-      const message = error?.name === "AbortError"
-        ? "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima."
-        : error instanceof TypeError
+      console.error("Diagnosis AI request failed:", error);
+
+      const message = error instanceof TypeError
           ? "Falha de conexão ao enviar a foto. Tente novamente."
           : error?.message || "Não consegui analisar sua planta agora. Tente novamente com uma foto mais nítida e próxima.";
 
       setAnalysisError(message);
       toast.error(message);
     } finally {
-      window.clearTimeout(timeoutId);
       setIsAnalyzing(false);
     }
   };
@@ -371,24 +308,24 @@ function DiagnosisAIPageInner() {
       <Card>
         <CardContent className="p-6 space-y-4">
           <input
-            ref={cameraRef}
+            id="diagnosis-camera-input"
             type="file"
             accept="image/*"
             capture="environment"
-            className="hidden"
+            className="sr-only"
             onChange={(event) => {
-              if (event.target.files?.[0]) handleFile(event.target.files[0]);
+              if (event.target.files?.[0]) void handleFile(event.target.files[0]);
               event.target.value = "";
             }}
           />
 
           <input
-            ref={galleryRef}
+            id="diagnosis-gallery-input"
             type="file"
             accept="image/*,.heic,.heif"
-            className="hidden"
+            className="sr-only"
             onChange={(event) => {
-              if (event.target.files?.[0]) handleFile(event.target.files[0]);
+              if (event.target.files?.[0]) void handleFile(event.target.files[0]);
               event.target.value = "";
             }}
           />
@@ -414,24 +351,24 @@ function DiagnosisAIPageInner() {
               <p className="text-center text-sm font-medium text-foreground mb-2">Como deseja enviar a imagem?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {hasCamera && (
-                  <button
-                    onClick={() => cameraRef.current?.click()}
+                  <label
+                    htmlFor="diagnosis-camera-input"
                     className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
                   >
                     <Camera className="w-10 h-10 text-primary" />
                     <span className="text-sm font-semibold text-foreground">Tirar Foto</span>
                     <span className="text-xs text-muted-foreground">Usar câmera do dispositivo</span>
-                  </button>
+                  </label>
                 )}
 
-                <button
-                  onClick={() => galleryRef.current?.click()}
+                <label
+                  htmlFor="diagnosis-gallery-input"
                   className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer"
                 >
                   <ImagePlus className="w-10 h-10 text-primary" />
                   <span className="text-sm font-semibold text-foreground">Selecionar da Galeria</span>
                   <span className="text-xs text-muted-foreground">JPG, PNG, WEBP ou HEIC (máx 10MB)</span>
-                </button>
+                </label>
               </div>
             </div>
           )}

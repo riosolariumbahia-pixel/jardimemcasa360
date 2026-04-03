@@ -6,6 +6,7 @@ const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.72;
 const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.42;
 const QUALITY_STEP = 0.08;
 const RESIZE_STEP = 0.85;
+const BASE64_CHUNK_SIZE = 0x8000;
 const OUTPUT_MIME_TYPE = "image/jpeg";
 const ACCEPTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
@@ -65,14 +66,18 @@ export function revokePreviewUrl(previewUrl: string | null) {
 }
 
 export async function encodeDiagnosisImageToBase64(blob: Blob) {
-  const dataUrl = await blobToDataUrl(blob);
-  const base64 = dataUrl.split(",")[1];
+  try {
+    const buffer = await blob.arrayBuffer();
+    const base64 = uint8ArrayToBase64(new Uint8Array(buffer));
 
-  if (!base64) {
+    if (!base64) {
+      throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
+    }
+
+    return base64;
+  } catch {
     throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
   }
-
-  return base64;
 }
 
 function getTargetDimensions(width: number, height: number) {
@@ -205,11 +210,16 @@ function resizeCanvas(canvas: HTMLCanvasElement, scale: number) {
   return resizedCanvas;
 }
 
-function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Não consegui preparar a foto para análise. Tente outra imagem."));
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.readAsDataURL(blob);
-  });
+function uint8ArrayToBase64(bytes: Uint8Array) {
+  let binary = "";
+
+  for (let index = 0; index < bytes.length; index += BASE64_CHUNK_SIZE) {
+    const chunk = bytes.subarray(index, index + BASE64_CHUNK_SIZE);
+
+    for (const byte of chunk) {
+      binary += String.fromCharCode(byte);
+    }
+  }
+
+  return btoa(binary);
 }
