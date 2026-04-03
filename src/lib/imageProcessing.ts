@@ -67,8 +67,16 @@ export function revokePreviewUrl(previewUrl: string | null) {
 
 export async function encodeDiagnosisImageToBase64(blob: Blob) {
   try {
+    if (typeof FileReader !== "undefined") {
+      return await blobToBase64WithFileReader(blob);
+    }
+  } catch (error) {
+    console.warn("Diagnosis FileReader base64 conversion failed, using fallback.", error);
+  }
+
+  try {
     const buffer = await blob.arrayBuffer();
-    const base64 = uint8ArrayToBase64(new Uint8Array(buffer));
+    const base64 = cleanBase64(uint8ArrayToBase64(new Uint8Array(buffer)));
 
     if (!base64) {
       throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
@@ -193,6 +201,30 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) 
   });
 }
 
+function blobToBase64WithFileReader(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      try {
+        const result = typeof reader.result === "string" ? cleanBase64(reader.result) : "";
+
+        if (!result) {
+          reject(new Error("Não consegui preparar a foto para análise. Tente outra imagem."));
+          return;
+        }
+
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    reader.onerror = () => reject(new Error("Não consegui preparar a foto para análise. Tente outra imagem."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 function resizeCanvas(canvas: HTMLCanvasElement, scale: number) {
   const resizedCanvas = document.createElement("canvas");
   resizedCanvas.width = Math.max(MIN_DIAGNOSIS_IMAGE_DIMENSION, Math.round(canvas.width * scale));
@@ -222,4 +254,20 @@ function uint8ArrayToBase64(bytes: Uint8Array) {
   }
 
   return btoa(binary);
+}
+
+function cleanBase64(value: string) {
+  let cleaned = value.trim();
+
+  if (cleaned.startsWith("data:") && cleaned.includes(",")) {
+    cleaned = cleaned.split(",", 2)[1] ?? "";
+  }
+
+  cleaned = cleaned.replace(/\s/g, "");
+
+  if (!cleaned || !/^[A-Za-z0-9+/]*={0,2}$/.test(cleaned)) {
+    throw new Error("Não consegui preparar a foto para análise. Tente outra imagem.");
+  }
+
+  return cleaned;
 }
