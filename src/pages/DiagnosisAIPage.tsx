@@ -180,6 +180,17 @@ function getDiagnosisErrorMessage(error: unknown) {
   return message;
 }
 
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+
+    setTimeout(resolve, 0);
+  });
+}
+
 function DiagnosisAIPageInner() {
   const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -223,6 +234,7 @@ function DiagnosisAIPageInner() {
     setAnalysisError(null);
 
     try {
+      await waitForNextPaint();
       revokePreviewUrl(imagePreview);
       const { blob, previewUrl } = await optimizeImageForDiagnosis(file);
       console.info("Diagnosis image prepared", { size: blob.size, type: blob.type });
@@ -248,6 +260,7 @@ function DiagnosisAIPageInner() {
     setAnalysisError(null);
 
     try {
+      await waitForNextPaint();
       const imageBase64 = await encodeDiagnosisImageToBase64(imageBlobRef.current);
       console.info("Sending diagnosis request", { bytes: imageBlobRef.current.size, base64Length: imageBase64.length });
 
