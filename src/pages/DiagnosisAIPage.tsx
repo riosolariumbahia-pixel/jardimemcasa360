@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
 import { toast } from "sonner";
 
-const WHATSAPP_NUMBER = "5500000000000"; // placeholder — será atualizado
+const WHATSAPP_NUMBER = "5571996091236";
 const FREE_DAILY_LIMIT = 3;
 
 // ── Error Boundaries ──
