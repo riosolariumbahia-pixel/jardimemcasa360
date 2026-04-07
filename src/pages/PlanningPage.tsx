@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sun, MapPin, Check, Plus, Trash2, ArrowUpDown, Flower2, Calculator } from "lucide-react";
 import { useGardens, type GardenDB } from "@/hooks/useGardens";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 interface ContainerItem {
   id: number;
@@ -108,7 +109,7 @@ export default function PlanningPage() {
 
   const saveLocation = () => {
     const spaceName = spaceOptions.find((s) => s.value === formSpace)?.label || formSpace;
-    const data = {
+    const data: Omit<GardenDB, "id" | "created_at"> = {
       name: formName || spaceName,
       location: formSpace,
       garden_type: formGardenType,
@@ -119,7 +120,7 @@ export default function PlanningPage() {
     };
 
     if (editingId) {
-      updateGarden.mutate({ id: editingId, updates: data });
+      updateGarden.mutate({ id: editingId, updates: data as TablesUpdate<"gardens"> });
     } else {
       addGarden.mutate(data);
     }

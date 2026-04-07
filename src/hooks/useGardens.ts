@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 export interface GardenDB {
   id: string;
@@ -50,7 +51,7 @@ export function useGardens() {
   });
 
   const updateGarden = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: TablesUpdate<"gardens"> }) => {
       const { error } = await supabase.from("gardens").update(updates).eq("id", id);
       if (error) throw error;
     },
