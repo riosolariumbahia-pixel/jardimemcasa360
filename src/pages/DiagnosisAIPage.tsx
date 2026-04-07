@@ -1,15 +1,17 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Camera, CheckCircle, HelpCircle, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Camera, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
-import { optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
+import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
 import { toast } from "sonner";
 
 const WHATSAPP_NUMBER = "5571996091236";
 const FREE_DAILY_LIMIT = 3;
+const DIAGNOSIS_API_PATH = "/api/diagnostico";
+const DIAGNOSIS_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/diagnostico`;
 
 // ── Error Boundaries ──
 
@@ -37,43 +39,78 @@ class DiagnosisErrorBoundary extends Component<{ children: ReactNode }, { hasErr
 // ── Types ──
 
 interface DiagnosisResult {
-  problema: string;
-  causa: string;
-  gravidade: "baixa" | "media" | "alta";
-  acao: string;
-  melhoria_solo: string;
-  confianca: number;
+  diagnostico: string;
+  recomendacao: string;
 }
 
 // ── Helpers ──
 
-function extractResult(raw: string): DiagnosisResult | null {
-  try {
-    const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const parsed = JSON.parse(match[0]);
-    const g = parsed.gravidade;
-    return {
-      problema: String(parsed.problema || "Diagnóstico inconclusivo"),
-      causa: String(parsed.causa || "Não identificada"),
-      gravidade: g === "baixa" || g === "media" || g === "alta" ? g : "media",
-      acao: String(parsed.acao || "Tente novamente com foto mais nítida."),
-      melhoria_solo: String(parsed.melhoria_solo || parsed.sugestao_solo || "Use um condicionador de solo para melhorar a nutrição."),
-      confianca: Math.min(Math.max(Number(parsed.confianca ?? parsed.confidence ?? 0.5), 0), 1),
-    };
-  } catch { return null; }
+type DiagnosisRequestError = Error & { status?: number };
+
+function createRequestError(message: string, status?: number): DiagnosisRequestError {
+  const error = new Error(message) as DiagnosisRequestError;
+  error.status = status;
+  return error;
 }
 
-function buildFallback(raw: string): DiagnosisResult {
+function normalizeDiagnosisResponse(payload: unknown): DiagnosisResult {
+  const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+  const diagnostico = typeof data?.diagnostico === "string" ? data.diagnostico.trim() : "";
+  const recomendacao = typeof data?.recomendacao === "string" ? data.recomendacao.trim() : "";
+
+  if (!diagnostico || !recomendacao) {
+    throw createRequestError("Resposta inválida do diagnóstico.", 502);
+  }
+
   return {
-    problema: raw.slice(0, 200) || "Não consegui concluir o diagnóstico.",
-    causa: "Resposta da IA em formato inesperado.",
-    gravidade: "media",
-    acao: "Tente novamente com uma foto mais nítida.",
-    melhoria_solo: "Considere o uso de um condicionador de solo para melhorar a saúde geral.",
-    confianca: 0.5,
+    diagnostico,
+    recomendacao,
   };
+}
+
+async function executeDiagnosisRequest(url: string, body: string, headers: HeadersInit): Promise<DiagnosisResult> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body,
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+      ? payload.error
+      : "Erro ao enviar imagem, tente novamente";
+
+    throw createRequestError(message, response.status);
+  }
+
+  return normalizeDiagnosisResponse(payload);
+}
+
+async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  const body = JSON.stringify({ imagem });
+
+  try {
+    return await executeDiagnosisRequest(DIAGNOSIS_API_PATH, body, headers);
+  } catch (error) {
+    const status = typeof error === "object" && error && "status" in error
+      ? Number((error as { status?: number }).status)
+      : undefined;
+
+    if (!(error instanceof TypeError) && status !== 404) {
+      throw error;
+    }
+
+    return executeDiagnosisRequest(DIAGNOSIS_FUNCTION_URL, body, headers);
+  }
 }
 
 async function getTodayDiagnosisCount(userId: string): Promise<number> {
@@ -85,17 +122,6 @@ async function getTodayDiagnosisCount(userId: string): Promise<number> {
     .eq("user_id", userId)
     .gte("created_at", todayStart.toISOString());
   return count ?? 0;
-}
-
-async function uploadImageToStorage(blob: Blob, userId: string): Promise<string> {
-  const fileName = `diagnosis/${userId}/${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from("plant-images").upload(fileName, blob, {
-    contentType: "image/jpeg",
-    upsert: false,
-  });
-  if (error) throw new Error("Falha ao enviar a foto. Tente novamente.");
-  const { data: urlData } = supabase.storage.from("plant-images").getPublicUrl(fileName);
-  return urlData.publicUrl;
 }
 
 // ── Main Component ──
@@ -110,8 +136,8 @@ function DiagnosisAIPageInner() {
   const [hasCamera, setHasCamera] = useState(true);
   const [dailyCount, setDailyCount] = useState(0);
   const [limitChecked, setLimitChecked] = useState(false);
-  const imageBlobRef = useRef<Blob | null>(null);
-  const [step, setStep] = useState<"idle" | "uploading" | "analyzing">("idle");
+  const [queuedBase64, setQueuedBase64] = useState<string | null>(null);
+  const imageBase64Ref = useRef<string | null>(null);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) { setHasCamera(false); return; }
@@ -121,50 +147,38 @@ function DiagnosisAIPageInner() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      getTodayDiagnosisCount(user.id).then(c => { setDailyCount(c); setLimitChecked(true); });
+    if (!user) {
+      setDailyCount(0);
+      setLimitChecked(true);
+      return;
     }
+
+    getTodayDiagnosisCount(user.id)
+      .then(c => {
+        setDailyCount(c);
+        setLimitChecked(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load diagnosis count:", error);
+        setLimitChecked(true);
+      });
   }, [user]);
 
   useEffect(() => { return () => revokePreviewUrl(imagePreview); }, [imagePreview]);
 
   const resetFlow = () => {
     revokePreviewUrl(imagePreview);
-    imageBlobRef.current = null;
+    imageBase64Ref.current = null;
     setImagePreview(null);
     setResult(null);
     setAnalysisError(null);
-    setStep("idle");
+    setQueuedBase64(null);
   };
 
-  const handleFile = async (file: File) => {
-    setIsProcessingImage(true);
-    setResult(null);
-    setAnalysisError(null);
-    try {
-      // Yield to render loading UI
-      await new Promise<void>(r => requestAnimationFrame(() => r()));
-      revokePreviewUrl(imagePreview);
-      const { blob, previewUrl } = await optimizeImageForDiagnosis(file);
-      console.info("Image optimized:", blob.size, "bytes");
-      imageBlobRef.current = blob;
-      setImagePreview(previewUrl);
-    } catch (e: any) {
-      console.error("Image processing error:", e);
-      imageBlobRef.current = null;
-      setImagePreview(null);
-      const msg = e?.message || "Erro ao carregar imagem.";
-      setAnalysisError(msg);
-      toast.error(msg);
-    } finally {
-      setIsProcessingImage(false);
-    }
-  };
+  const analyze = async (base64Image = imageBase64Ref.current) => {
+    if (!base64Image || isAnalyzing) return;
 
-  const analyze = async () => {
-    if (!imageBlobRef.current || !user || isAnalyzing) return;
-
-    if (dailyCount >= FREE_DAILY_LIMIT) {
+    if (user && dailyCount >= FREE_DAILY_LIMIT) {
       setAnalysisError(`Você atingiu o limite de ${FREE_DAILY_LIMIT} diagnósticos gratuitos hoje.`);
       return;
     }
@@ -174,57 +188,65 @@ function DiagnosisAIPageInner() {
     setAnalysisError(null);
 
     try {
-      // Step 1: Upload image to storage (avoids sending huge base64 in body)
-      setStep("uploading");
       await new Promise<void>(r => requestAnimationFrame(() => r()));
-      const imageUrl = await uploadImageToStorage(imageBlobRef.current, user.id);
-      console.info("Image uploaded to storage:", imageUrl);
+      const diagnosis = await postDiagnosisRequest(base64Image);
 
-      // Step 2: Call AI with URL
-      setStep("analyzing");
-      await new Promise<void>(r => requestAnimationFrame(() => r()));
+      console.info("Diagnosis completed:", diagnosis);
+      setResult(diagnosis);
 
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          mode: "diagnosis",
-          imageUrl,
-          messages: [{ role: "user", content: "Analise esta planta e identifique possíveis problemas de saúde." }],
-        },
-      });
-
-      if (error) {
-        console.error("AI invoke error:", error);
-        const errMsg = typeof error === "object" && "message" in error ? (error as any).message : "";
-        if (errMsg.includes("Créditos")) throw new Error("Créditos de IA esgotados.");
-        if (errMsg.includes("Limite")) throw new Error("Muitas requisições. Aguarde.");
-        throw new Error("Não consegui analisar sua planta agora. Tente novamente.");
+      if (user) {
+        setDailyCount(c => c + 1);
+        void supabase.from("analises_imagem").insert({
+          user_id: user.id,
+          image_url: "inline://diagnostico",
+          ai_result: diagnosis as any,
+          confidence: 0.9,
+        }).then(
+          () => undefined,
+          (error) => console.warn("Failed to save diagnosis history:", error),
+        );
       }
-
-      const content = typeof data === "string" ? data : data?.content || data?.response || "";
-      if (!content.trim()) throw new Error("Resposta vazia da IA. Tente novamente.");
-
-      const parsed = extractResult(content) || buildFallback(content);
-      setResult(parsed);
-      setDailyCount(c => c + 1);
-
-      // Save to DB
-      void supabase.from("analises_imagem").insert({
-        user_id: user.id,
-        image_url: imageUrl,
-        ai_result: parsed as any,
-        confidence: parsed.confianca,
-      }).then(() => {}, () => {});
-
-    } catch (e: any) {
+    } catch (e) {
       console.error("Diagnosis failed:", e);
-      const msg = e instanceof TypeError
-        ? "Falha de conexão. Verifique sua internet."
-        : e?.message || "Erro ao analisar. Tente novamente.";
+      const msg = "Erro ao enviar imagem, tente novamente";
       setAnalysisError(msg);
       toast.error(msg);
     } finally {
       setIsAnalyzing(false);
-      setStep("idle");
+    }
+  };
+
+  useEffect(() => {
+    if (!queuedBase64 || isProcessingImage || isAnalyzing) return;
+
+    void analyze(queuedBase64);
+    setQueuedBase64(null);
+  }, [queuedBase64, isProcessingImage, isAnalyzing]);
+
+  const handleFile = async (file: File) => {
+    setIsProcessingImage(true);
+    setResult(null);
+    setAnalysisError(null);
+    setQueuedBase64(null);
+
+    try {
+      await new Promise<void>(r => requestAnimationFrame(() => r()));
+      revokePreviewUrl(imagePreview);
+      const { blob, previewUrl } = await optimizeImageForDiagnosis(file);
+      const base64 = await encodeDiagnosisImageToBase64(blob);
+      console.info("Diagnosis image prepared:", { bytes: blob.size, base64Length: base64.length });
+      imageBase64Ref.current = base64;
+      setImagePreview(previewUrl);
+      setQueuedBase64(base64);
+    } catch (e: any) {
+      console.error("Image processing error:", e);
+      imageBase64Ref.current = null;
+      setImagePreview(null);
+      const msg = e?.message || "Erro ao carregar imagem.";
+      setAnalysisError(msg);
+      toast.error(msg);
+    } finally {
+      setIsProcessingImage(false);
     }
   };
 
@@ -305,26 +327,19 @@ function DiagnosisAIPageInner() {
                   <label htmlFor="dx-gallery"
                     className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer active:scale-95">
                     <ImagePlus className="w-10 h-10 text-primary" />
-                    <span className="text-sm font-semibold text-foreground">Selecionar Foto</span>
+                    <span className="text-sm font-semibold text-foreground">Selecionar Imagem</span>
                     <span className="text-xs text-muted-foreground">Da galeria do dispositivo</span>
                   </label>
                 </div>
+                <p className="text-center text-xs text-muted-foreground">A análise começa automaticamente após escolher a imagem.</p>
               </div>
             )}
 
-            {imagePreview && !result && (
-              <Button onClick={analyze} disabled={isAnalyzing || isProcessingImage} className="w-full" size="lg">
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {step === "uploading" ? "Enviando foto..." : "Analisando sua planta..."}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" /> Diagnosticar minha planta
-                  </>
-                )}
-              </Button>
+            {imagePreview && !result && isAnalyzing && (
+              <div className="flex flex-col items-center justify-center gap-3 py-2">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Analisando planta...</p>
+              </div>
             )}
 
             {analysisError && <p className="text-sm text-destructive text-center">{analysisError}</p>}
@@ -344,69 +359,28 @@ function DiagnosisAIPageInner() {
 // ── Result Card ──
 
 function DiagnosisResultCard({ result, onReset }: { result: DiagnosisResult; onReset: () => void }) {
-  const gravityConfig = {
-    baixa: { icon: CheckCircle, label: "Leve", cls: "bg-primary/10 text-primary" },
-    media: { icon: AlertTriangle, label: "Médio", cls: "bg-secondary text-secondary-foreground" },
-    alta: { icon: AlertTriangle, label: "Grave", cls: "bg-destructive/10 text-destructive" },
-  } as const;
-
-  const g = gravityConfig[result.gravidade] || gravityConfig.media;
-  const Icon = g.icon;
-  const pct = Math.round(result.confianca * 100);
-
   const whatsappMsg = encodeURIComponent("Olá, fiz o diagnóstico da minha planta no app e quero comprar o produto recomendado");
   const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMsg}`;
 
   return (
     <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <CardContent className="p-5 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-heading font-bold text-foreground flex items-center gap-2">
-            <Leaf className="w-5 h-5 text-primary" />
-            🌿 Diagnóstico da sua planta
-          </h2>
-          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${g.cls}`}>
-            <Icon className="h-3 w-3" /> {g.label}
-          </span>
+        <div className="flex items-center gap-2">
+          <Leaf className="w-5 h-5 text-primary" />
+          <h2 className="font-heading font-bold text-foreground">Resultado do diagnóstico</h2>
         </div>
 
-        {/* Confidence */}
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Confiança</span><span className="font-medium text-foreground">{pct}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          {result.confianca < 0.6 && (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <HelpCircle className="h-3 w-3" /> Considere consultar um especialista.
-            </p>
-          )}
-        </div>
-
-        {/* Diagnosis details */}
         <div className="space-y-3">
-          <div className="rounded-lg border border-destructive/10 bg-destructive/5 p-3">
-            <p className="mb-1 text-xs font-medium text-destructive">🔍 Problema identificado</p>
-            <p className="text-sm text-foreground">{result.problema}</p>
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
+            <p className="mb-1 text-xs font-medium text-foreground">Diagnóstico</p>
+            <p className="text-sm text-foreground">{result.diagnostico}</p>
           </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <p className="mb-1 text-xs font-medium text-foreground">⚠️ Causa provável</p>
-            <p className="text-sm text-foreground">{result.causa}</p>
-          </div>
-          <div className="rounded-lg border border-primary/10 bg-primary/5 p-3">
-            <p className="mb-1 text-xs font-medium text-primary">✅ O que fazer</p>
-            <p className="text-sm text-foreground">{result.acao}</p>
-          </div>
-          <div className="rounded-lg border border-primary/10 bg-primary/5 p-3">
-            <p className="mb-1 text-xs font-medium text-primary">💚 Sugestão de melhoria</p>
-            <p className="text-sm text-foreground">{result.melhoria_solo}</p>
+          <div className="rounded-lg border border-primary/10 bg-primary/5 p-4">
+            <p className="mb-1 text-xs font-medium text-primary">Recomendação</p>
+            <p className="text-sm text-foreground">{result.recomendacao}</p>
           </div>
         </div>
 
-        {/* CTA - WhatsApp */}
         <div className="rounded-xl bg-primary/10 border border-primary/20 p-4 text-center space-y-2">
           <p className="text-sm font-semibold text-foreground">Quer recuperar sua planta rapidamente?</p>
           <p className="text-xs text-muted-foreground">Recomendamos um condicionador de solo para melhorar a saúde da sua planta</p>
