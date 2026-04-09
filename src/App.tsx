@@ -65,7 +65,6 @@ function ProtectedRoutes() {
         <Route path="/dicas" element={<TipsPage />} />
         <Route path="/ebook" element={<EbookPage />} />
         <Route path="/assistente" element={<AssistantPage />} />
-        <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/percepcoes" element={<PercepcionsPage />} />
         <Route path="*" element={<Navigate to="/meu-jardim" replace />} />
@@ -86,6 +85,7 @@ const App = () => (
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/anunciantes" element={<AdminAnunciantesPage />} />
             <Route path="/admin/anuncios" element={<AdminAnunciosPage />} />
+            <Route path="/diagnostico-ia" element={<GardenLayout><DiagnosisAIPage /></GardenLayout>} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

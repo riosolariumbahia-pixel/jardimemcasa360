@@ -1,9 +1,9 @@
 const MAX_DIAGNOSIS_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_DIAGNOSIS_IMAGE_DIMENSION = 1024;
+const MAX_DIAGNOSIS_IMAGE_DIMENSION = 896;
 const MIN_DIAGNOSIS_IMAGE_DIMENSION = 512;
-const MAX_DIAGNOSIS_IMAGE_BYTES = 550 * 1024;
-const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.72;
-const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.42;
+const MAX_DIAGNOSIS_IMAGE_BYTES = 420 * 1024;
+const INITIAL_DIAGNOSIS_IMAGE_QUALITY = 0.68;
+const MIN_DIAGNOSIS_IMAGE_QUALITY = 0.36;
 const QUALITY_STEP = 0.08;
 const RESIZE_STEP = 0.85;
 const BASE64_CHUNK_SIZE = 0x8000;
@@ -178,6 +178,7 @@ async function loadImageSource(file: File): Promise<{
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const element = new Image();
+      element.decoding = "async";
       element.onload = () => resolve(element);
       element.onerror = () => reject(new Error("Não consegui preparar a foto para análise. Tente outra imagem."));
       element.src = objectUrl;
@@ -197,8 +198,34 @@ async function loadImageSource(file: File): Promise<{
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), type, quality);
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+
+      resolve(dataUrlToBlob(canvas.toDataURL(type, quality)));
+    }, type, quality);
   });
+}
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, content] = dataUrl.split(",", 2);
+
+  if (!header || !content) {
+    return null;
+  }
+
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || OUTPUT_MIME_TYPE;
+  const binary = atob(content);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
 }
 
 function blobToBase64WithFileReader(blob: Blob) {
