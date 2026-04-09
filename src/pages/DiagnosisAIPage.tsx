@@ -1,5 +1,5 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Camera, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Camera, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,9 +9,7 @@ import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewU
 import { toast } from "sonner";
 
 const WHATSAPP_NUMBER = "5571996091236";
-const FREE_DAILY_LIMIT = 3;
-const DIAGNOSIS_API_PATH = "/api/diagnostico";
-const DIAGNOSIS_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/diagnostico`;
+const DIAGNOSIS_FUNCTION_NAME = "diagnostico";
 
 // ── Error Boundaries ──
 
@@ -53,8 +51,29 @@ function createRequestError(message: string, status?: number): DiagnosisRequestE
   return error;
 }
 
+function parseDiagnosisPayload(payload: unknown): Record<string, unknown> | null {
+  if (payload && typeof payload === "object") {
+    return payload as Record<string, unknown>;
+  }
+
+  if (typeof payload !== "string" || !payload.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(payload);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeDiagnosisResponse(payload: unknown): DiagnosisResult {
-  const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+  const basePayload = parseDiagnosisPayload(payload);
+  const nestedPayload = typeof basePayload?.content === "string"
+    ? parseDiagnosisPayload(basePayload.content)
+    : null;
+  const data = nestedPayload ?? basePayload;
   const diagnostico = typeof data?.diagnostico === "string" ? data.diagnostico.trim() : "";
   const recomendacao = typeof data?.recomendacao === "string" ? data.recomendacao.trim() : "";
 
@@ -68,60 +87,17 @@ function normalizeDiagnosisResponse(payload: unknown): DiagnosisResult {
   };
 }
 
-async function executeDiagnosisRequest(url: string, body: string, headers: HeadersInit): Promise<DiagnosisResult> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body,
+async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
+  const { data, error } = await supabase.functions.invoke(DIAGNOSIS_FUNCTION_NAME, {
+    body: { imagem },
   });
 
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-      ? payload.error
-      : "Erro ao enviar imagem, tente novamente";
-
-    throw createRequestError(message, response.status);
+  if (error) {
+    console.error("Diagnosis invoke error:", error);
+    throw createRequestError("Erro ao enviar imagem, tente novamente", 500);
   }
 
-  return normalizeDiagnosisResponse(payload);
-}
-
-async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`;
-  }
-
-  const body = JSON.stringify({ imagem });
-
-  try {
-    return await executeDiagnosisRequest(DIAGNOSIS_API_PATH, body, headers);
-  } catch (error) {
-    const status = typeof error === "object" && error && "status" in error
-      ? Number((error as { status?: number }).status)
-      : undefined;
-
-    if (!(error instanceof TypeError) && status !== 404) {
-      throw error;
-    }
-
-    return executeDiagnosisRequest(DIAGNOSIS_FUNCTION_URL, body, headers);
-  }
-}
-
-async function getTodayDiagnosisCount(userId: string): Promise<number> {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const { count } = await supabase
-    .from("analises_imagem")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", todayStart.toISOString());
-  return count ?? 0;
+  return normalizeDiagnosisResponse(data);
 }
 
 // ── Main Component ──
@@ -134,8 +110,6 @@ function DiagnosisAIPageInner() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
-  const [dailyCount, setDailyCount] = useState(0);
-  const [limitChecked, setLimitChecked] = useState(false);
   const [queuedBase64, setQueuedBase64] = useState<string | null>(null);
   const imageBase64Ref = useRef<string | null>(null);
 
@@ -146,30 +120,13 @@ function DiagnosisAIPageInner() {
       .catch(() => setHasCamera(false));
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setDailyCount(0);
-      setLimitChecked(true);
-      return;
-    }
-
-    getTodayDiagnosisCount(user.id)
-      .then(c => {
-        setDailyCount(c);
-        setLimitChecked(true);
-      })
-      .catch((error) => {
-        console.error("Failed to load diagnosis count:", error);
-        setLimitChecked(true);
-      });
-  }, [user]);
-
   useEffect(() => { return () => revokePreviewUrl(imagePreview); }, [imagePreview]);
 
   const resetFlow = () => {
     revokePreviewUrl(imagePreview);
     imageBase64Ref.current = null;
     setImagePreview(null);
+    setIsAnalyzing(false);
     setResult(null);
     setAnalysisError(null);
     setQueuedBase64(null);
@@ -177,11 +134,6 @@ function DiagnosisAIPageInner() {
 
   const analyze = async (base64Image = imageBase64Ref.current) => {
     if (!base64Image || isAnalyzing) return;
-
-    if (user && dailyCount >= FREE_DAILY_LIMIT) {
-      setAnalysisError(`Você atingiu o limite de ${FREE_DAILY_LIMIT} diagnósticos gratuitos hoje.`);
-      return;
-    }
 
     setIsAnalyzing(true);
     setResult(null);
@@ -195,7 +147,6 @@ function DiagnosisAIPageInner() {
       setResult(diagnosis);
 
       if (user) {
-        setDailyCount(c => c + 1);
         void supabase.from("analises_imagem").insert({
           user_id: user.id,
           image_url: "inline://diagnostico",
@@ -219,8 +170,8 @@ function DiagnosisAIPageInner() {
   useEffect(() => {
     if (!queuedBase64 || isProcessingImage || isAnalyzing) return;
 
-    void analyze(queuedBase64);
     setQueuedBase64(null);
+    void analyze(queuedBase64);
   }, [queuedBase64, isProcessingImage, isAnalyzing]);
 
   const handleFile = async (file: File) => {
@@ -250,9 +201,6 @@ function DiagnosisAIPageInner() {
     }
   };
 
-  const remainingToday = Math.max(0, FREE_DAILY_LIMIT - dailyCount);
-  const atLimit = limitChecked && remainingToday <= 0;
-
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-8">
       {/* Header */}
@@ -264,88 +212,63 @@ function DiagnosisAIPageInner() {
         <p className="text-sm text-muted-foreground">
           Envie uma foto e descubra o que sua planta precisa
         </p>
-        {limitChecked && (
-          <p className="text-xs text-muted-foreground">
-            {remainingToday > 0
-              ? `${remainingToday} diagnóstico${remainingToday > 1 ? "s" : ""} grátis restante${remainingToday > 1 ? "s" : ""} hoje`
-              : "Limite diário atingido"}
-          </p>
-        )}
       </div>
 
-      {/* Upgrade banner */}
-      {atLimit && !result && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-5 text-center space-y-3">
-            <Sparkles className="w-8 h-8 text-primary mx-auto" />
-            <h2 className="font-heading font-bold text-foreground">Limite diário atingido</h2>
-            <p className="text-sm text-muted-foreground">
-              Você usou seus {FREE_DAILY_LIMIT} diagnósticos gratuitos hoje. Volte amanhã ou faça upgrade para diagnósticos ilimitados!
-            </p>
-            <Button className="w-full" size="lg" disabled>
-              <Sparkles className="w-4 h-4 mr-2" /> Upgrade Premium — Em breve
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Image capture */}
-      {!atLimit && (
-        <Card>
-          <CardContent className="p-5 space-y-4">
-            <input id="dx-camera" type="file" accept="image/*" capture="environment" className="sr-only"
-              onChange={e => { if (e.target.files?.[0]) void handleFile(e.target.files[0]); e.target.value = ""; }} />
-            <input id="dx-gallery" type="file" accept="image/*,.heic,.heif" className="sr-only"
-              onChange={e => { if (e.target.files?.[0]) void handleFile(e.target.files[0]); e.target.value = ""; }} />
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <input id="dx-camera" type="file" accept="image/*" capture="environment" className="sr-only"
+            onChange={e => { if (e.target.files?.[0]) void handleFile(e.target.files[0]); e.target.value = ""; }} />
+          <input id="dx-gallery" type="file" accept="image/*,.heic,.heif" className="sr-only"
+            onChange={e => { if (e.target.files?.[0]) void handleFile(e.target.files[0]); e.target.value = ""; }} />
 
-            {isProcessingImage ? (
-              <div className="flex flex-col items-center py-12 gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Preparando imagem...</p>
-              </div>
-            ) : imagePreview ? (
-              <div className="relative">
-                <img src={imagePreview} alt="Planta para diagnóstico" className="w-full max-h-72 object-contain rounded-xl border border-border" />
-                <button onClick={resetFlow}
-                  className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 shadow-md"
-                  title="Remover imagem">
-                  <X className="w-4 h-4 text-foreground" />
-                </button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-border rounded-xl p-6 space-y-3">
-                <p className="text-center text-sm font-medium text-foreground">Como deseja enviar a imagem?</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {hasCamera && (
-                    <label htmlFor="dx-camera"
-                      className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer active:scale-95">
-                      <Camera className="w-10 h-10 text-primary" />
-                      <span className="text-sm font-semibold text-foreground">Tirar Foto</span>
-                      <span className="text-xs text-muted-foreground">Câmera do celular</span>
-                    </label>
-                  )}
-                  <label htmlFor="dx-gallery"
+          {isProcessingImage ? (
+            <div className="flex flex-col items-center py-12 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Preparando imagem...</p>
+            </div>
+          ) : imagePreview ? (
+            <div className="relative">
+              <img src={imagePreview} alt="Planta para diagnóstico" className="w-full max-h-72 object-contain rounded-xl border border-border" />
+              <button onClick={resetFlow}
+                className="absolute top-2 right-2 bg-background/80 backdrop-blur rounded-full p-1.5 shadow-md"
+                title="Remover imagem">
+                <X className="w-4 h-4 text-foreground" />
+              </button>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-xl p-6 space-y-3">
+              <p className="text-center text-sm font-medium text-foreground">Como deseja enviar a imagem?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {hasCamera && (
+                  <label htmlFor="dx-camera"
                     className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer active:scale-95">
-                    <ImagePlus className="w-10 h-10 text-primary" />
-                    <span className="text-sm font-semibold text-foreground">Selecionar Imagem</span>
-                    <span className="text-xs text-muted-foreground">Da galeria do dispositivo</span>
+                    <Camera className="w-10 h-10 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Tirar Foto</span>
+                    <span className="text-xs text-muted-foreground">Câmera do celular</span>
                   </label>
-                </div>
-                <p className="text-center text-xs text-muted-foreground">A análise começa automaticamente após escolher a imagem.</p>
+                )}
+                <label htmlFor="dx-gallery"
+                  className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer active:scale-95">
+                  <ImagePlus className="w-10 h-10 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Selecionar Imagem</span>
+                  <span className="text-xs text-muted-foreground">Da galeria do dispositivo</span>
+                </label>
               </div>
-            )}
+              <p className="text-center text-xs text-muted-foreground">A análise começa automaticamente após escolher a imagem.</p>
+            </div>
+          )}
 
-            {imagePreview && !result && isAnalyzing && (
-              <div className="flex flex-col items-center justify-center gap-3 py-2">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Analisando planta...</p>
-              </div>
-            )}
+          {imagePreview && !result && isAnalyzing && (
+            <div className="flex flex-col items-center justify-center gap-3 py-2">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Analisando planta...</p>
+            </div>
+          )}
 
-            {analysisError && <p className="text-sm text-destructive text-center">{analysisError}</p>}
-          </CardContent>
-        </Card>
-      )}
+          {analysisError && <p className="text-sm text-destructive text-center">{analysisError}</p>}
+        </CardContent>
+      </Card>
 
       {/* Result */}
       {result && <DiagnosisResultCard result={result} onReset={resetFlow} />}
