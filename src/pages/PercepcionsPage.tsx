@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
+import { computePlantStatus } from "@/lib/plantHealth";
 
 type StatusGeral = "bom" | "atencao" | "critico";
 type ChatMsg = { role: "user" | "assistant"; content: string };
