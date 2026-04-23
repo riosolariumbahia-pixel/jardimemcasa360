@@ -109,18 +109,33 @@ export default function MyGardenPage() {
         </button>
       </div>
 
+      {/* Critical alert banner */}
+      {plantsCritical > 0 && (
+        <div className="garden-card p-4 border-2 border-red-300 bg-red-50 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <AlertOctagon className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-red-800 mb-1">
+                🚨 {plantsCritical} planta(s) em estado crítico!
+              </h3>
+              <p className="text-xs text-red-700">
+                Falta urgente de água ou adubo. Aja agora para salvar suas plantas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-fade-in-up animate-delay-100">
         <div className="garden-card p-4 text-center">
-          <Heart className="w-5 h-5 text-red-400 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">
-            {plants.length > 0 ? Math.round(plants.reduce((a, p) => a + (p.health ?? 80), 0) / plants.length) : 0}%
-          </p>
+          <Heart className={`w-5 h-5 mx-auto mb-1 ${avgHealth > 70 ? "text-red-400" : avgHealth > 40 ? "text-amber-500" : "text-red-600"}`} />
+          <p className="text-lg font-bold text-foreground">{avgHealth}%</p>
           <p className="text-xs text-muted-foreground">Saúde média</p>
         </div>
         <div className="garden-card p-4 text-center">
           <Droplets className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.needs_water).length}</p>
+          <p className="text-lg font-bold text-foreground">{plantsNeedingWater}</p>
           <p className="text-xs text-muted-foreground">Precisam de água</p>
         </div>
         <div className="garden-card p-4 text-center">
@@ -130,7 +145,7 @@ export default function MyGardenPage() {
         </div>
         <div className="garden-card p-4 text-center">
           <Scissors className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.needs_pruning).length}</p>
+          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.status.needsPruning).length}</p>
           <p className="text-xs text-muted-foreground">Precisam de poda</p>
         </div>
       </div>
