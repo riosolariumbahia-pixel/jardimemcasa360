@@ -214,21 +214,39 @@ export default function MyGardenPage() {
 
       {/* Plant list */}
       <div className="space-y-3 animate-fade-in-up animate-delay-200">
-        {plants.map((plant) => (
-          <div key={plant.id} className="garden-card p-4">
+        {plants.map((plant) => {
+          const s = plant.status;
+          const cardBorder =
+            s.alertLevel === "critico"
+              ? "border-2 border-red-300"
+              : s.alertLevel === "atencao"
+              ? "border-2 border-amber-200"
+              : "";
+          return (
+          <div key={plant.id} className={`garden-card p-4 ${cardBorder}`}>
             <div className="flex items-center gap-4">
               <span className="text-3xl">{plant.emoji}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <p className="font-semibold text-foreground">{plant.name}</p>
-                  {plant.needs_fertilizer && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Adubar
+                  {s.waterStatus === "critico" && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertOctagon className="w-3 h-3" /> Crítico — sem água
                     </span>
                   )}
-                  {plant.needs_water && (
+                  {s.waterStatus === "atrasado" && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <Droplets className="w-3 h-3" /> Regar
+                      <Droplets className="w-3 h-3" /> Regar agora
+                    </span>
+                  )}
+                  {s.fertilizerStatus === "critico" && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertOctagon className="w-3 h-3" /> Adubo crítico
+                    </span>
+                  )}
+                  {s.fertilizerStatus === "atrasado" && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Adubar
                     </span>
                   )}
                 </div>
@@ -236,18 +254,27 @@ export default function MyGardenPage() {
                   <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${plant.health ?? 80}%`, backgroundColor: healthColor(plant.health ?? 80) }}
+                      style={{ width: `${s.health}%`, backgroundColor: healthColor(s.health) }}
                     />
                   </div>
                   <span className="text-xs font-bold text-muted-foreground w-10 text-right tabular-nums">
-                    {plant.health ?? 80}%
+                    {s.health}%
                   </span>
                 </div>
                 <div className="flex gap-3 mt-1 flex-wrap">
-                  <p className="text-xs text-muted-foreground">💧 {formatDate(plant.last_watered)}</p>
-                  <p className="text-xs text-muted-foreground">🌱 {formatDate(plant.last_fertilized)}</p>
+                  <p className={`text-xs ${s.waterStatus !== "ok" ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+                    💧 {formatDate(plant.last_watered)}
+                  </p>
+                  <p className={`text-xs ${s.fertilizerStatus !== "ok" ? "text-amber-700 font-semibold" : "text-muted-foreground"}`}>
+                    🌱 {formatDate(plant.last_fertilized)}
+                  </p>
                   <p className="text-xs text-muted-foreground">✂️ {formatDate(plant.last_pruned)}</p>
                 </div>
+                {s.alertLevel !== "saudavel" && (
+                  <p className={`text-xs mt-1 font-semibold ${s.alertLevel === "critico" ? "text-red-600" : "text-amber-700"}`}>
+                    ⚠️ {s.alertMessage}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2 shrink-0">
                 <div className="flex gap-2">
