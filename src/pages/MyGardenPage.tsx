@@ -57,7 +57,12 @@ export default function MyGardenPage() {
   const healthColor = (h: number) =>
     h > 80 ? "hsl(var(--garden-green))" : h > 50 ? "hsl(40, 80%, 50%)" : "hsl(0, 70%, 55%)";
 
-  const plantsNeedingFertilizer = plants.filter((p) => p.needs_fertilizer).length;
+  const plantsNeedingWater = plants.filter((p) => p.status.needsWater).length;
+  const plantsNeedingFertilizer = plants.filter((p) => p.status.needsFertilizer).length;
+  const plantsCritical = plants.filter((p) => p.status.alertLevel === "critico").length;
+  const avgHealth = plants.length > 0
+    ? Math.round(plants.reduce((a, p) => a + p.status.health, 0) / plants.length)
+    : 0;
   const totalFertilizerKg = plants.length > 0 ? Math.max(0.5, Math.ceil(plants.length * 0.15 * 10) / 10) : 0;
 
   const filteredCatalog = catalogPlants.filter((p) =>
