@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
+import { computePlantStatus } from "@/lib/plantHealth";
 
 type StatusGeral = "bom" | "atencao" | "critico";
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -22,9 +23,10 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 function buildPlantContext(plants: any[]): string {
   if (!plants.length) return "O usuário ainda não possui plantas no jardim.";
-  return plants.map(p =>
-    `- ${p.emoji} ${p.name}: saúde ${p.health ?? 80}%, água: ${p.needs_water ? "precisa" : "ok"}, adubo: ${p.needs_fertilizer ? "precisa" : "ok"}, poda: ${p.needs_pruning ? "precisa" : "ok"}, luz: ${p.light || "?"}, última rega: ${p.last_watered ? new Date(p.last_watered).toLocaleDateString("pt-BR") : "nunca"}, último adubo: ${p.last_fertilized ? new Date(p.last_fertilized).toLocaleDateString("pt-BR") : "nunca"}`
-  ).join("\n");
+  return plants.map(p => {
+    const s = computePlantStatus(p);
+    return `- ${p.emoji} ${p.name}: saúde REAL ${s.health}% (${s.alertLevel}), ${s.alertMessage}. Última rega: ${p.last_watered ? new Date(p.last_watered).toLocaleDateString("pt-BR") : "nunca"} (há ${s.daysSinceWater} dias). Último adubo: ${p.last_fertilized ? new Date(p.last_fertilized).toLocaleDateString("pt-BR") : "nunca"} (há ${s.daysSinceFertilizer} dias). Luz: ${p.light || "?"}.`;
+  }).join("\n");
 }
 
 export default function PercepcionsPage() {
@@ -38,50 +40,73 @@ export default function PercepcionsPage() {
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
-  // ─── Bloco A: Resumo do Jardim ───
+  // Calcula status dinâmico de cada planta uma única vez
+  const plantStatuses = useMemo(
+    () => gardenPlants.map(p => ({ plant: p, status: computePlantStatus(p) })),
+    [gardenPlants]
+  );
+
+  // ─── Bloco A: Resumo do Jardim (baseado em status DINÂMICO) ───
   const summary = useMemo(() => {
-    if (!gardenPlants.length) return null;
-    const saudaveis = gardenPlants.filter(p => (p.health ?? 80) >= 80).length;
-    const criticas = gardenPlants.filter(p => (p.health ?? 80) < 50).length;
-    const atencao = gardenPlants.length - saudaveis - criticas;
-    const precisamAgua = gardenPlants.filter(p => p.needs_water).length;
-    const precisamAdubo = gardenPlants.filter(p => p.needs_fertilizer).length;
-    const precisamPoda = gardenPlants.filter(p => p.needs_pruning).length;
+    if (!plantStatuses.length) return null;
+
+    const criticas = plantStatuses.filter(x => x.status.alertLevel === "critico").length;
+    const atencao = plantStatuses.filter(x => x.status.alertLevel === "atencao").length;
+    const saudaveis = plantStatuses.filter(x => x.status.alertLevel === "saudavel").length;
+    const precisamAgua = plantStatuses.filter(x => x.status.needsWater).length;
+    const precisamAdubo = plantStatuses.filter(x => x.status.needsFertilizer).length;
+    const precisamPoda = plantStatuses.filter(x => x.status.needsPruning).length;
 
     let status: StatusGeral = "bom";
     if (criticas > 0) status = "critico";
-    else if (atencao > 0 || precisamAgua > gardenPlants.length / 2) status = "atencao";
+    else if (atencao > 0) status = "atencao";
 
-    return { status, total: gardenPlants.length, saudaveis, atencao, criticas, precisamAgua, precisamAdubo, precisamPoda };
-  }, [gardenPlants]);
+    return { status, total: plantStatuses.length, saudaveis, atencao, criticas, precisamAgua, precisamAdubo, precisamPoda };
+  }, [plantStatuses]);
 
-  // ─── Bloco B: Diagnóstico e Recomendações ───
+  // ─── Bloco B: Diagnóstico e Recomendações (baseado em status DINÂMICO) ───
   const diagnostico = useMemo(() => {
-    if (!gardenPlants.length) return null;
+    if (!plantStatuses.length) return null;
 
-    let texto = "";
     const s = summary!;
-    if (s.criticas > 0) texto = "Há plantas em estado crítico. Ação imediata recomendada.";
-    else if (s.atencao > 0) texto = "Algumas plantas precisam de atenção. Verifique rega e iluminação.";
-    else texto = "Seu jardim está saudável e bem cuidado.";
+    let texto = "";
+    if (s.criticas > 0) {
+      texto = `🚨 ${s.criticas} planta(s) em estado CRÍTICO. Risco de morte por falta de água ou adubo. Aja agora!`;
+    } else if (s.atencao > 0) {
+      texto = `⚠️ ${s.atencao} planta(s) precisam de atenção (rega ou adubação atrasada). Cuide hoje para evitar agravamento.`;
+    } else {
+      texto = "Seu jardim está saudável e bem cuidado.";
+    }
 
     const recs: string[] = [];
-    gardenPlants.forEach(p => {
-      const h = p.health ?? 80;
-      if (h < 50) {
-        recs.push(`Regar urgentemente a planta ${p.name} 💧`);
-        recs.push(`Verificar se ${p.name} precisa mudar de ambiente 🌤️`);
-        recs.push(`Inspecionar ${p.name} contra pragas 🔍`);
-      } else if (h < 80) {
-        if (p.needs_water) recs.push(`Ajustar a frequência de rega de ${p.name} 💧`);
-        recs.push(`Verificar a exposição ao sol de ${p.name} ☀️`);
-      }
-      if (p.needs_fertilizer) recs.push(`Aplicar adubo Adubei NPK 5-15-5 em ${p.name} 🌿`);
-      if (p.needs_pruning) recs.push(`Realizar poda em ${p.name} ✂️`);
+    // Ordena: críticas primeiro
+    const ordered = [...plantStatuses].sort((a, b) => {
+      const order = { critico: 0, atencao: 1, saudavel: 2 };
+      return order[a.status.alertLevel] - order[b.status.alertLevel];
     });
 
-    return { texto, recomendacoes: recs.slice(0, 10) };
-  }, [gardenPlants, summary]);
+    ordered.forEach(({ plant, status }) => {
+      if (status.waterStatus === "critico") {
+        recs.push(`🚨 REGAR URGENTE ${plant.name} — sem água há ${status.daysSinceWater} dias`);
+      } else if (status.waterStatus === "atrasado") {
+        recs.push(`💧 Regar ${plant.name} — atrasada há ${status.daysSinceWater - (status.daysSinceWater - status.waterDueInDays * -1)} dia(s)`);
+      } else if (status.needsWater) {
+        recs.push(`💧 Hora de regar ${plant.name}`);
+      }
+
+      if (status.fertilizerStatus === "critico") {
+        recs.push(`🌿 Adubar URGENTE ${plant.name} — sem adubo há ${status.daysSinceFertilizer} dias`);
+      } else if (status.fertilizerStatus === "atrasado") {
+        recs.push(`🌿 Aplicar adubo Adubei NPK 5-15-5 em ${plant.name} — adubação atrasada`);
+      } else if (status.needsFertilizer) {
+        recs.push(`🌿 Aplicar adubo em ${plant.name}`);
+      }
+
+      if (status.needsPruning) recs.push(`✂️ Realizar poda em ${plant.name}`);
+    });
+
+    return { texto, recomendacoes: recs.slice(0, 12) };
+  }, [plantStatuses, summary]);
 
   // ─── Bloco C: Chat ───
   const sendMessage = async (text?: string) => {
