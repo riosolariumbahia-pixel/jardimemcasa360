@@ -84,7 +84,23 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Health Score */}
+      {/* Critical alert banner */}
+      {stats.criticalPlants > 0 && (
+        <Card className="border-2 border-red-300 bg-red-50">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertOctagon className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-red-800 mb-1">
+                🚨 {stats.criticalPlants} planta(s) em estado crítico!
+              </h3>
+              <p className="text-xs text-red-700">
+                Falta urgente de água ou adubo. Aja agora para evitar que morram.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-2 border-primary/20">
         <CardContent className="p-6 text-center">
           <p className="text-xs text-muted-foreground mb-2">Saúde Geral do Jardim</p>
