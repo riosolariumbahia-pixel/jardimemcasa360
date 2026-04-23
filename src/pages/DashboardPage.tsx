@@ -1,33 +1,48 @@
 import { useMemo } from "react";
-import { Activity, AlertTriangle, CheckCircle, Droplets, Sprout, TrendingUp, Sparkles, Calendar } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, Droplets, Sprout, TrendingUp, Sparkles, Calendar, AlertOctagon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { computePlantStatus } from "@/lib/plantHealth";
 
 export default function DashboardPage() {
-  const { plants: gardenPlants, isLoading } = useGardenPlants();
+  const { plants: rawPlants, isLoading } = useGardenPlants();
   const navigate = useNavigate();
+
+  const gardenPlants = useMemo(
+    () => rawPlants.map((p) => ({ ...p, status: computePlantStatus(p) })),
+    [rawPlants]
+  );
 
   const stats = useMemo(() => {
     if (!gardenPlants.length) return null;
-    const totalHealth = gardenPlants.reduce((sum, p) => sum + (p.health || 0), 0);
+    const totalHealth = gardenPlants.reduce((sum, p) => sum + p.status.health, 0);
     const avgHealth = Math.round(totalHealth / gardenPlants.length);
-    const needWater = gardenPlants.filter((p) => p.needs_water).length;
-    const needFertilizer = gardenPlants.filter((p) => p.needs_fertilizer).length;
-    const needPruning = gardenPlants.filter((p) => p.needs_pruning).length;
-    const healthyPlants = gardenPlants.filter((p) => (p.health || 0) >= 70).length;
-    const sickPlants = gardenPlants.filter((p) => (p.health || 0) < 50).length;
-    return { avgHealth, needWater, needFertilizer, needPruning, healthyPlants, sickPlants, total: gardenPlants.length };
+    const needWater = gardenPlants.filter((p) => p.status.needsWater).length;
+    const needFertilizer = gardenPlants.filter((p) => p.status.needsFertilizer).length;
+    const needPruning = gardenPlants.filter((p) => p.status.needsPruning).length;
+    const healthyPlants = gardenPlants.filter((p) => p.status.health >= 70).length;
+    const sickPlants = gardenPlants.filter((p) => p.status.health < 50).length;
+    const criticalPlants = gardenPlants.filter((p) => p.status.alertLevel === "critico").length;
+    return { avgHealth, needWater, needFertilizer, needPruning, healthyPlants, sickPlants, criticalPlants, total: gardenPlants.length };
   }, [gardenPlants]);
 
   const alerts = useMemo(() => {
     const items: { text: string; priority: "alta" | "media" | "baixa"; icon: any }[] = [];
     gardenPlants.forEach((p) => {
-      if ((p.health || 0) < 40) items.push({ text: `${p.emoji} ${p.name} precisa de atenção urgente!`, priority: "alta", icon: AlertTriangle });
-      if (p.needs_water) items.push({ text: `${p.emoji} ${p.name} precisa de água`, priority: "media", icon: Droplets });
-      if (p.needs_fertilizer) items.push({ text: `${p.emoji} ${p.name} precisa de adubação com Adubei`, priority: "media", icon: Sprout });
+      const s = p.status;
+      if (s.waterStatus === "critico") {
+        items.push({ text: `${p.emoji} ${p.name}: sem água há ${s.daysSinceWater} dias — risco de morte!`, priority: "alta", icon: AlertOctagon });
+      } else if (s.waterStatus === "atrasado") {
+        items.push({ text: `${p.emoji} ${p.name}: regar agora (atrasado)`, priority: "media", icon: Droplets });
+      }
+      if (s.fertilizerStatus === "critico") {
+        items.push({ text: `${p.emoji} ${p.name}: sem adubo há ${s.daysSinceFertilizer} dias — desenvolvimento parado`, priority: "alta", icon: AlertOctagon });
+      } else if (s.fertilizerStatus === "atrasado") {
+        items.push({ text: `${p.emoji} ${p.name}: adubar com Adubei NPK 5-15-5`, priority: "media", icon: Sprout });
+      }
     });
     return items.sort((a, b) => (a.priority === "alta" ? -1 : 1)).slice(0, 8);
   }, [gardenPlants]);
@@ -35,9 +50,9 @@ export default function DashboardPage() {
   const todayTasks = useMemo(() => {
     const tasks: string[] = [];
     gardenPlants.forEach((p) => {
-      if (p.needs_water) tasks.push(`Regar ${p.emoji} ${p.name}`);
-      if (p.needs_fertilizer) tasks.push(`Adubar ${p.emoji} ${p.name} com Adubei NPK 5-15-5`);
-      if (p.needs_pruning) tasks.push(`Podar ${p.emoji} ${p.name}`);
+      if (p.status.needsWater) tasks.push(`Regar ${p.emoji} ${p.name}`);
+      if (p.status.needsFertilizer) tasks.push(`Adubar ${p.emoji} ${p.name} com Adubei NPK 5-15-5`);
+      if (p.status.needsPruning) tasks.push(`Podar ${p.emoji} ${p.name}`);
     });
     return tasks.slice(0, 6);
   }, [gardenPlants]);
