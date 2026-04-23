@@ -31,7 +31,7 @@ export default function MyGardenPage() {
   const waterPlant = (id: string) => {
     updatePlant.mutate({
       id,
-      updates: { health: 100, last_watered: new Date().toISOString(), needs_water: false },
+      updates: { last_watered: new Date().toISOString(), needs_water: false, health: 100 },
     });
   };
 
