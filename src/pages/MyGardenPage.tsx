@@ -1,14 +1,21 @@
 import { useState, useMemo } from "react";
-import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
+import { computePlantStatus } from "@/lib/plantHealth";
 
 export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
-  const { plants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+  const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+
+  // Calcula status real (saúde, necessidades) com base no tempo decorrido
+  const plants = useMemo(
+    () => rawPlants.map((p) => ({ ...p, status: computePlantStatus(p) })),
+    [rawPlants]
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
@@ -24,7 +31,7 @@ export default function MyGardenPage() {
   const waterPlant = (id: string) => {
     updatePlant.mutate({
       id,
-      updates: { health: 100, last_watered: new Date().toISOString(), needs_water: false },
+      updates: { last_watered: new Date().toISOString(), needs_water: false, health: 100 },
     });
   };
 
@@ -50,7 +57,12 @@ export default function MyGardenPage() {
   const healthColor = (h: number) =>
     h > 80 ? "hsl(var(--garden-green))" : h > 50 ? "hsl(40, 80%, 50%)" : "hsl(0, 70%, 55%)";
 
-  const plantsNeedingFertilizer = plants.filter((p) => p.needs_fertilizer).length;
+  const plantsNeedingWater = plants.filter((p) => p.status.needsWater).length;
+  const plantsNeedingFertilizer = plants.filter((p) => p.status.needsFertilizer).length;
+  const plantsCritical = plants.filter((p) => p.status.alertLevel === "critico").length;
+  const avgHealth = plants.length > 0
+    ? Math.round(plants.reduce((a, p) => a + p.status.health, 0) / plants.length)
+    : 0;
   const totalFertilizerKg = plants.length > 0 ? Math.max(0.5, Math.ceil(plants.length * 0.15 * 10) / 10) : 0;
 
   const filteredCatalog = catalogPlants.filter((p) =>
@@ -97,18 +109,33 @@ export default function MyGardenPage() {
         </button>
       </div>
 
+      {/* Critical alert banner */}
+      {plantsCritical > 0 && (
+        <div className="garden-card p-4 border-2 border-red-300 bg-red-50 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <AlertOctagon className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-sm text-red-800 mb-1">
+                🚨 {plantsCritical} planta(s) em estado crítico!
+              </h3>
+              <p className="text-xs text-red-700">
+                Falta urgente de água ou adubo. Aja agora para salvar suas plantas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-fade-in-up animate-delay-100">
         <div className="garden-card p-4 text-center">
-          <Heart className="w-5 h-5 text-red-400 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">
-            {plants.length > 0 ? Math.round(plants.reduce((a, p) => a + (p.health ?? 80), 0) / plants.length) : 0}%
-          </p>
+          <Heart className={`w-5 h-5 mx-auto mb-1 ${avgHealth > 70 ? "text-red-400" : avgHealth > 40 ? "text-amber-500" : "text-red-600"}`} />
+          <p className="text-lg font-bold text-foreground">{avgHealth}%</p>
           <p className="text-xs text-muted-foreground">Saúde média</p>
         </div>
         <div className="garden-card p-4 text-center">
           <Droplets className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.needs_water).length}</p>
+          <p className="text-lg font-bold text-foreground">{plantsNeedingWater}</p>
           <p className="text-xs text-muted-foreground">Precisam de água</p>
         </div>
         <div className="garden-card p-4 text-center">
@@ -118,7 +145,7 @@ export default function MyGardenPage() {
         </div>
         <div className="garden-card p-4 text-center">
           <Scissors className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.needs_pruning).length}</p>
+          <p className="text-lg font-bold text-foreground">{plants.filter((p) => p.status.needsPruning).length}</p>
           <p className="text-xs text-muted-foreground">Precisam de poda</p>
         </div>
       </div>
@@ -187,21 +214,39 @@ export default function MyGardenPage() {
 
       {/* Plant list */}
       <div className="space-y-3 animate-fade-in-up animate-delay-200">
-        {plants.map((plant) => (
-          <div key={plant.id} className="garden-card p-4">
+        {plants.map((plant) => {
+          const s = plant.status;
+          const cardBorder =
+            s.alertLevel === "critico"
+              ? "border-2 border-red-300"
+              : s.alertLevel === "atencao"
+              ? "border-2 border-amber-200"
+              : "";
+          return (
+          <div key={plant.id} className={`garden-card p-4 ${cardBorder}`}>
             <div className="flex items-center gap-4">
               <span className="text-3xl">{plant.emoji}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <p className="font-semibold text-foreground">{plant.name}</p>
-                  {plant.needs_fertilizer && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Adubar
+                  {s.waterStatus === "critico" && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertOctagon className="w-3 h-3" /> Crítico — sem água
                     </span>
                   )}
-                  {plant.needs_water && (
+                  {s.waterStatus === "atrasado" && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                      <Droplets className="w-3 h-3" /> Regar
+                      <Droplets className="w-3 h-3" /> Regar agora
+                    </span>
+                  )}
+                  {s.fertilizerStatus === "critico" && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertOctagon className="w-3 h-3" /> Adubo crítico
+                    </span>
+                  )}
+                  {s.fertilizerStatus === "atrasado" && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Adubar
                     </span>
                   )}
                 </div>
@@ -209,18 +254,27 @@ export default function MyGardenPage() {
                   <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${plant.health ?? 80}%`, backgroundColor: healthColor(plant.health ?? 80) }}
+                      style={{ width: `${s.health}%`, backgroundColor: healthColor(s.health) }}
                     />
                   </div>
                   <span className="text-xs font-bold text-muted-foreground w-10 text-right tabular-nums">
-                    {plant.health ?? 80}%
+                    {s.health}%
                   </span>
                 </div>
                 <div className="flex gap-3 mt-1 flex-wrap">
-                  <p className="text-xs text-muted-foreground">💧 {formatDate(plant.last_watered)}</p>
-                  <p className="text-xs text-muted-foreground">🌱 {formatDate(plant.last_fertilized)}</p>
+                  <p className={`text-xs ${s.waterStatus !== "ok" ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+                    💧 {formatDate(plant.last_watered)}
+                  </p>
+                  <p className={`text-xs ${s.fertilizerStatus !== "ok" ? "text-amber-700 font-semibold" : "text-muted-foreground"}`}>
+                    🌱 {formatDate(plant.last_fertilized)}
+                  </p>
                   <p className="text-xs text-muted-foreground">✂️ {formatDate(plant.last_pruned)}</p>
                 </div>
+                {s.alertLevel !== "saudavel" && (
+                  <p className={`text-xs mt-1 font-semibold ${s.alertLevel === "critico" ? "text-red-600" : "text-amber-700"}`}>
+                    ⚠️ {s.alertMessage}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2 shrink-0">
                 <div className="flex gap-2">
@@ -248,7 +302,8 @@ export default function MyGardenPage() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Anúncio */}
