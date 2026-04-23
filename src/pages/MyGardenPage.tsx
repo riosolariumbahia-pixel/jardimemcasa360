@@ -1,14 +1,21 @@
 import { useState, useMemo } from "react";
-import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
+import { computePlantStatus } from "@/lib/plantHealth";
 
 export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
-  const { plants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+  const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+
+  // Calcula status real (saúde, necessidades) com base no tempo decorrido
+  const plants = useMemo(
+    () => rawPlants.map((p) => ({ ...p, status: computePlantStatus(p) })),
+    [rawPlants]
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearch, setAddSearch] = useState("");
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
