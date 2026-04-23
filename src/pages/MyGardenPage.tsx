@@ -302,7 +302,8 @@ export default function MyGardenPage() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Anúncio */}
