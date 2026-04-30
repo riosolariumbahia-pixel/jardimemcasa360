@@ -1,4 +1,4 @@
-import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye } from "lucide-react";
+import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye, Crown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: "Planejamento", path: "/planejamento", Icon: ClipboardList },
   { label: "Dicas e Sugestões", path: "/dicas", Icon: Lightbulb },
   { label: "E-book", path: "/ebook", Icon: BookOpen },
+  { label: "Planos Premium", path: "/planos", Icon: Crown },
 ] as const;
 
 export function GardenSidebar() {
