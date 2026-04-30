@@ -129,14 +129,18 @@ async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
 
 function DiagnosisAIPageInner() {
   const { user } = useAuth();
+  const sub = useSubscription();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
   const [queuedBase64, setQueuedBase64] = useState<string | null>(null);
   const imageBase64Ref = useRef<string | null>(null);
+
+  const planLimit = sub.isPremium ? 5 : 1;
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) { setHasCamera(false); return; }
@@ -154,6 +158,7 @@ function DiagnosisAIPageInner() {
     setIsAnalyzing(false);
     setResult(null);
     setAnalysisError(null);
+    setLimitReached(false);
     setQueuedBase64(null);
   };
 
@@ -182,11 +187,17 @@ function DiagnosisAIPageInner() {
           (error) => console.warn("Failed to save diagnosis history:", error),
         );
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Diagnosis failed:", e);
-      const msg = "Erro ao enviar imagem, tente novamente";
-      setAnalysisError(msg);
-      toast.error(msg);
+      if (e?.status === 402) {
+        setLimitReached(true);
+        setAnalysisError(e.message);
+        toast.error(e.message);
+      } else {
+        const msg = e?.status === 401 ? (e.message || "Faça login para usar o diagnóstico.") : "Erro ao enviar imagem, tente novamente";
+        setAnalysisError(msg);
+        toast.error(msg);
+      }
     } finally {
       setIsAnalyzing(false);
     }
