@@ -15,6 +15,8 @@ import AssistantPage from "./pages/AssistantPage";
 import DiagnosisAIPage from "./pages/DiagnosisAIPage";
 import DashboardPage from "./pages/DashboardPage";
 import PercepcionsPage from "./pages/PercepcionsPage";
+import PricingPage from "./pages/PricingPage";
+import CheckoutReturnPage from "./pages/CheckoutReturnPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminAnunciantesPage from "./pages/admin/AdminAnunciantesPage";
@@ -61,12 +63,15 @@ function ProtectedRoutes() {
         <Route path="/adubacao" element={<FertilizationPage />} />
         <Route path="/calendario" element={<CalendarPage />} />
         <Route path="/diagnostico" element={<DiagnosisPage />} />
+        <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
         <Route path="/planejamento" element={<PlanningPage />} />
         <Route path="/dicas" element={<TipsPage />} />
         <Route path="/ebook" element={<EbookPage />} />
         <Route path="/assistente" element={<AssistantPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/percepcoes" element={<PercepcionsPage />} />
+        <Route path="/planos" element={<PricingPage />} />
+        <Route path="/checkout/return" element={<CheckoutReturnPage />} />
         <Route path="*" element={<Navigate to="/meu-jardim" replace />} />
       </Routes>
     </GardenLayout>
@@ -85,7 +90,6 @@ const App = () => (
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/anunciantes" element={<AdminAnunciantesPage />} />
             <Route path="/admin/anuncios" element={<AdminAnunciosPage />} />
-            <Route path="/diagnostico-ia" element={<GardenLayout><DiagnosisAIPage /></GardenLayout>} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

@@ -1,8 +1,10 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Camera, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, X } from "lucide-react";
+import { AlertTriangle, Camera, Crown, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
 import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
@@ -39,6 +41,7 @@ class DiagnosisErrorBoundary extends Component<{ children: ReactNode }, { hasErr
 interface DiagnosisResult {
   diagnostico: string;
   recomendacao: string;
+  meta?: { plano: string; usado: number; limite: number };
 }
 
 // ── Helpers ──
@@ -92,26 +95,52 @@ async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
     body: { imagem },
   });
 
+  // Edge Function returns FunctionsHttpError on non-2xx; data may still hold body via context
   if (error) {
     console.error("Diagnosis invoke error:", error);
+    // Try to read error context body for limit/auth messages
+    const ctxBody: any = (error as any)?.context?.body || (error as any)?.context;
+    let parsed: any = null;
+    try {
+      if (typeof ctxBody === "string") parsed = JSON.parse(ctxBody);
+      else if (ctxBody) parsed = ctxBody;
+    } catch { /* noop */ }
+
+    if (parsed?.error === "limit_reached") {
+      throw createRequestError(parsed.message || "Limite diário atingido.", 402);
+    }
+    if (parsed?.error === "auth_required") {
+      throw createRequestError(parsed.message || "Faça login para continuar.", 401);
+    }
     throw createRequestError("Erro ao enviar imagem, tente novamente", 500);
   }
 
-  return normalizeDiagnosisResponse(data);
+  // Some success responses may still carry app errors
+  if ((data as any)?.error === "limit_reached") {
+    throw createRequestError((data as any).message || "Limite diário atingido.", 402);
+  }
+
+  const normalized = normalizeDiagnosisResponse(data);
+  if ((data as any)?.meta) normalized.meta = (data as any).meta;
+  return normalized;
 }
 
 // ── Main Component ──
 
 function DiagnosisAIPageInner() {
   const { user } = useAuth();
+  const sub = useSubscription();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [result, setResult] = useState<DiagnosisResult | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
   const [queuedBase64, setQueuedBase64] = useState<string | null>(null);
   const imageBase64Ref = useRef<string | null>(null);
+
+  const planLimit = sub.isPremium ? 5 : 1;
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) { setHasCamera(false); return; }
@@ -129,6 +158,7 @@ function DiagnosisAIPageInner() {
     setIsAnalyzing(false);
     setResult(null);
     setAnalysisError(null);
+    setLimitReached(false);
     setQueuedBase64(null);
   };
 
@@ -157,11 +187,17 @@ function DiagnosisAIPageInner() {
           (error) => console.warn("Failed to save diagnosis history:", error),
         );
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Diagnosis failed:", e);
-      const msg = "Erro ao enviar imagem, tente novamente";
-      setAnalysisError(msg);
-      toast.error(msg);
+      if (e?.status === 402) {
+        setLimitReached(true);
+        setAnalysisError(e.message);
+        toast.error(e.message);
+      } else {
+        const msg = e?.status === 401 ? (e.message || "Faça login para usar o diagnóstico.") : "Erro ao enviar imagem, tente novamente";
+        setAnalysisError(msg);
+        toast.error(msg);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -204,7 +240,7 @@ function DiagnosisAIPageInner() {
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-8">
       {/* Header */}
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10">
           <Leaf className="w-5 h-5 text-primary" />
           <h1 className="font-heading text-lg font-bold text-foreground">Diagnosticar minha planta</h1>
@@ -212,7 +248,34 @@ function DiagnosisAIPageInner() {
         <p className="text-sm text-muted-foreground">
           Envie uma foto e descubra o que sua planta precisa
         </p>
+        {user && (
+          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            {sub.isPremium ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                <Crown className="w-3 h-3" /> Premium · até {planLimit}/dia
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <span>Plano Gratuito · {planLimit}/dia</span>
+                <Link to="/planos" className="text-primary underline font-medium">Ser Premium</Link>
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {limitReached && !sub.isPremium && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 text-center space-y-2">
+            <Crown className="w-8 h-8 text-primary mx-auto" />
+            <p className="text-sm font-semibold">Limite diário atingido</p>
+            <p className="text-xs text-muted-foreground">Assine o Premium por R$ 19,90/mês e faça até 5 diagnósticos por dia.</p>
+            <Link to="/planos">
+              <Button className="w-full mt-1"><Crown className="w-4 h-4 mr-2" /> Assinar Premium</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Image capture */}
       <Card>
