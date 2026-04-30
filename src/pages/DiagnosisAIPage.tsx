@@ -240,7 +240,7 @@ function DiagnosisAIPageInner() {
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-8">
       {/* Header */}
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10">
           <Leaf className="w-5 h-5 text-primary" />
           <h1 className="font-heading text-lg font-bold text-foreground">Diagnosticar minha planta</h1>
@@ -248,7 +248,34 @@ function DiagnosisAIPageInner() {
         <p className="text-sm text-muted-foreground">
           Envie uma foto e descubra o que sua planta precisa
         </p>
+        {user && (
+          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            {sub.isPremium ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                <Crown className="w-3 h-3" /> Premium · até {planLimit}/dia
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <span>Plano Gratuito · {planLimit}/dia</span>
+                <Link to="/planos" className="text-primary underline font-medium">Ser Premium</Link>
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {limitReached && !sub.isPremium && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 text-center space-y-2">
+            <Crown className="w-8 h-8 text-primary mx-auto" />
+            <p className="text-sm font-semibold">Limite diário atingido</p>
+            <p className="text-xs text-muted-foreground">Assine o Premium por R$ 19,90/mês e faça até 5 diagnósticos por dia.</p>
+            <Link to="/planos">
+              <Button className="w-full mt-1"><Crown className="w-4 h-4 mr-2" /> Assinar Premium</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Image capture */}
       <Card>
