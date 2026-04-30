@@ -1,8 +1,10 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Camera, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, X } from "lucide-react";
+import { AlertTriangle, Camera, Crown, ImagePlus, Leaf, Loader2, MessageCircle, RefreshCw, ShoppingBag, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAnuncios, useRegistrarClique } from "@/hooks/useAnuncios";
 import { supabase } from "@/integrations/supabase/client";
 import { encodeDiagnosisImageToBase64, optimizeImageForDiagnosis, revokePreviewUrl } from "@/lib/imageProcessing";
@@ -39,6 +41,7 @@ class DiagnosisErrorBoundary extends Component<{ children: ReactNode }, { hasErr
 interface DiagnosisResult {
   diagnostico: string;
   recomendacao: string;
+  meta?: { plano: string; usado: number; limite: number };
 }
 
 // ── Helpers ──
@@ -92,12 +95,34 @@ async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
     body: { imagem },
   });
 
+  // Edge Function returns FunctionsHttpError on non-2xx; data may still hold body via context
   if (error) {
     console.error("Diagnosis invoke error:", error);
+    // Try to read error context body for limit/auth messages
+    const ctxBody: any = (error as any)?.context?.body || (error as any)?.context;
+    let parsed: any = null;
+    try {
+      if (typeof ctxBody === "string") parsed = JSON.parse(ctxBody);
+      else if (ctxBody) parsed = ctxBody;
+    } catch { /* noop */ }
+
+    if (parsed?.error === "limit_reached") {
+      throw createRequestError(parsed.message || "Limite diário atingido.", 402);
+    }
+    if (parsed?.error === "auth_required") {
+      throw createRequestError(parsed.message || "Faça login para continuar.", 401);
+    }
     throw createRequestError("Erro ao enviar imagem, tente novamente", 500);
   }
 
-  return normalizeDiagnosisResponse(data);
+  // Some success responses may still carry app errors
+  if ((data as any)?.error === "limit_reached") {
+    throw createRequestError((data as any).message || "Limite diário atingido.", 402);
+  }
+
+  const normalized = normalizeDiagnosisResponse(data);
+  if ((data as any)?.meta) normalized.meta = (data as any).meta;
+  return normalized;
 }
 
 // ── Main Component ──
