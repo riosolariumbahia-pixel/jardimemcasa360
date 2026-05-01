@@ -226,9 +226,28 @@ export default function CatalogPage() {
             </div>
           </div>
 
-          <button className="bg-primary text-primary-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200">
-            Adicionar ao Meu Jardim
-          </button>
+          {isPremium ? (
+            <button
+              onClick={() => navigate("/meu-jardim")}
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200"
+            >
+              Adicionar ao Meu Jardim
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate("/planos")}
+                className="w-full bg-gradient-to-r from-primary to-garden-green-dark text-primary-foreground px-5 py-2.5 rounded-lg font-bold text-sm hover:opacity-90 active:scale-[0.97] transition-all flex items-center justify-center gap-2 shadow-md"
+              >
+                <Crown className="w-4 h-4" />
+                Assinar Premium para adicionar
+              </button>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Lock className="w-3 h-3" />
+                Você pode visualizar todas as plantas no plano gratuito.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
