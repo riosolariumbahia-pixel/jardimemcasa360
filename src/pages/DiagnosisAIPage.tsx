@@ -91,8 +91,9 @@ function normalizeDiagnosisResponse(payload: unknown): DiagnosisResult {
 }
 
 async function postDiagnosisRequest(imagem: string): Promise<DiagnosisResult> {
+  const { getStripeEnvironment } = await import("@/lib/stripe");
   const { data, error } = await supabase.functions.invoke(DIAGNOSIS_FUNCTION_NAME, {
-    body: { imagem },
+    body: { imagem, environment: getStripeEnvironment() },
   });
 
   // Edge Function returns FunctionsHttpError on non-2xx; data may still hold body via context
