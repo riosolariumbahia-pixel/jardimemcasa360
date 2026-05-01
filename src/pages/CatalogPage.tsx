@@ -81,6 +81,8 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todas");
   const [selected, setSelected] = useState<Plant | null>(null);
+  const { isPremium } = useSubscription();
+  const navigate = useNavigate();
 
   const filtered = plants.filter((p) => {
     const matchSearch =
