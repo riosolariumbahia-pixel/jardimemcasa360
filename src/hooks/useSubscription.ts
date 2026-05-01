@@ -64,14 +64,17 @@ export function useSubscription(): SubscriptionInfo & { refetch: () => void } {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel(`subs-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
-        () => void fetchSub(),
-      )
-      .subscribe();
+    // Nome único por instância do hook para evitar conflito quando o canal
+    // é reaproveitado em StrictMode/múltiplos consumidores. Define todos
+    // os listeners ANTES de chamar .subscribe().
+    const channelName = `subs-${user.id}-${Math.random().toString(36).slice(2, 10)}`;
+    const channel = supabase.channel(channelName);
+    channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
+      () => void fetchSub(),
+    );
+    channel.subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
