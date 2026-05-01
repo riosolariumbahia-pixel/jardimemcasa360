@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Eye, AlertTriangle, CheckCircle, AlertCircle, Lightbulb, Send, Loader2, Sparkles, Droplets, Leaf, Scissors, MessageCircle, Bot } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Eye, AlertTriangle, CheckCircle, AlertCircle, Lightbulb, Send, Loader2, Sparkles, Droplets, Leaf, Scissors, MessageCircle, Bot, Crown, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { useAnuncios } from "@/hooks/useAnuncios";
