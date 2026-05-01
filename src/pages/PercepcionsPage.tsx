@@ -115,6 +115,10 @@ export default function PercepcionsPage() {
 
   // ─── Bloco C: Chat ───
   const sendMessage = async (text?: string) => {
+    if (!isPremium) {
+      toast.info("Assistente conversacional é exclusivo Premium.");
+      return;
+    }
     const msg = text || input.trim();
     if (!msg || streaming) return;
     setInput("");
