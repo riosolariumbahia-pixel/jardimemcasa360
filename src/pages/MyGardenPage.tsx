@@ -12,6 +12,8 @@ export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
   const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+  const { isPremium } = useSubscription();
+  const guard = useRequirePremium();
 
   // Calcula status real (saúde, necessidades) com base no tempo decorrido
   const plants = useMemo(
@@ -23,6 +25,8 @@ export default function MyGardenPage() {
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data: anuncios } = useAnuncios();
+
+  const openAddModal = guard(() => setShowAddModal(true), "Adicionar plantas ao jardim");
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
     addPlant.mutate(catalogPlant);
