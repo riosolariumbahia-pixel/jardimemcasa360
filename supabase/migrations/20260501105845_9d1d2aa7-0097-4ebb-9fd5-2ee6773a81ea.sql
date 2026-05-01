@@ -1,0 +1,1 @@
+UPDATE public.subscriptions SET price_id = 'premium_monthly' WHERE price_id = 'pending' AND status = 'active' AND environment = 'sandbox';
