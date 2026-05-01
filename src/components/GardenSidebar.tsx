@@ -1,23 +1,28 @@
-import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye, Crown } from "lucide-react";
+import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye, Crown, Lock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useSubscription } from "@/hooks/useSubscription";
 
+// `tier` define o que cada item exige:
+// - "free": acessível para todos
+// - "free-limited": acessível mas com restrições internas (ex.: 1 diag/dia, ver sem adicionar)
+// - "premium": bloqueado para Free (mostra cadeado)
 const NAV_ITEMS = [
-  { label: "Meu Jardim", path: "/meu-jardim", Icon: TreeDeciduous },
-  { label: "Dashboard IA", path: "/dashboard", Icon: Activity },
-  { label: "Percepções", path: "/percepcoes", Icon: Eye },
-  { label: "Assistente IA", path: "/assistente", Icon: Bot },
-  { label: "Diagnóstico IA", path: "/diagnostico-ia", Icon: Camera },
-  { label: "Catálogo de Plantas", path: "/catalogo", Icon: Leaf },
-  { label: "Adubação", path: "/adubacao", Icon: Beaker },
-  { label: "Calendário", path: "/calendario", Icon: Calendar },
-  { label: "Diagnóstico Manual", path: "/diagnostico", Icon: Stethoscope },
-  { label: "Planejamento", path: "/planejamento", Icon: ClipboardList },
-  { label: "Dicas e Sugestões", path: "/dicas", Icon: Lightbulb },
-  { label: "E-book", path: "/ebook", Icon: BookOpen },
-  { label: "Planos Premium", path: "/planos", Icon: Crown },
+  { label: "Meu Jardim", path: "/meu-jardim", Icon: TreeDeciduous, tier: "free-limited" },
+  { label: "Dashboard IA", path: "/dashboard", Icon: Activity, tier: "premium" },
+  { label: "Percepções", path: "/percepcoes", Icon: Eye, tier: "premium" },
+  { label: "Assistente IA", path: "/assistente", Icon: Bot, tier: "premium" },
+  { label: "Diagnóstico IA", path: "/diagnostico-ia", Icon: Camera, tier: "free-limited" },
+  { label: "Catálogo de Plantas", path: "/catalogo", Icon: Leaf, tier: "free-limited" },
+  { label: "Adubação", path: "/adubacao", Icon: Beaker, tier: "premium" },
+  { label: "Calendário", path: "/calendario", Icon: Calendar, tier: "premium" },
+  { label: "Diagnóstico Manual", path: "/diagnostico", Icon: Stethoscope, tier: "premium" },
+  { label: "Planejamento", path: "/planejamento", Icon: ClipboardList, tier: "premium" },
+  { label: "Dicas e Sugestões", path: "/dicas", Icon: Lightbulb, tier: "premium" },
+  { label: "E-book", path: "/ebook", Icon: BookOpen, tier: "premium" },
+  { label: "Planos Premium", path: "/planos", Icon: Crown, tier: "free" },
 ] as const;
 
 export function GardenSidebar() {
