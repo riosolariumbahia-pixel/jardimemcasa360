@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
+import { type StripeEnv, createStripeClient, verifyWebhook } from "../_shared/stripe.ts";
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -88,25 +88,25 @@ Deno.serve(async (req) => {
     const event = await verifyWebhook(req, env);
     switch (event.type) {
       case "checkout.session.completed": {
-        // Fallback in case subscription.created arrives without metadata.
-        // Stripe also fires subscription.created — upsert by stripe_subscription_id keeps it idempotent.
         const session: any = event.data.object;
         const userId = session.metadata?.userId;
         const subscriptionId = session.subscription;
         if (userId && subscriptionId && session.mode === "subscription") {
-          await getSupabase().from("subscriptions").upsert(
-            {
-              user_id: userId,
-              stripe_subscription_id: subscriptionId,
-              stripe_customer_id: session.customer,
-              product_id: "pending",
-              price_id: "pending",
-              status: "active",
-              environment: env,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "stripe_subscription_id" },
-          );
+          // Fetch the full subscription from Stripe so we have real price/product/period
+          // data immediately — don't wait for customer.subscription.* to arrive later.
+          try {
+            const stripe = createStripeClient(env);
+            const sub: any = await stripe.subscriptions.retrieve(subscriptionId, {
+              expand: ["items.data.price"],
+            });
+            // Ensure metadata has userId (helps downstream events)
+            if (!sub.metadata?.userId) {
+              await stripe.subscriptions.update(subscriptionId, { metadata: { userId } });
+            }
+            await handleSubscriptionCreated({ ...sub, metadata: { ...sub.metadata, userId } }, env);
+          } catch (err) {
+            console.error("Failed to retrieve subscription on checkout.completed:", err);
+          }
         }
         break;
       }
