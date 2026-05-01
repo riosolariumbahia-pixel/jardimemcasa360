@@ -383,6 +383,8 @@ export default function PercepcionsPage() {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
 
         {/* Anúncio contextual */}
         <AnuncioContextual />
