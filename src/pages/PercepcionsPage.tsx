@@ -294,12 +294,28 @@ export default function PercepcionsPage() {
         </>
       )}
 
-      {/* ─── Bloco C: Assistente Conversacional ─── */}
+      {/* ─── Bloco C: Assistente Conversacional (Premium) ─── */}
       <div>
         <h2 className="font-heading text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-primary" /> Assistente do Jardim
+          {!isPremium && <Crown className="w-4 h-4 text-primary" />}
         </h2>
 
+        {!isPremium ? (
+          <Card className="border-2 border-primary/40 bg-primary/5">
+            <CardContent className="p-6 text-center space-y-3">
+              <Lock className="w-10 h-10 mx-auto text-primary" />
+              <p className="font-semibold text-foreground">Assistente conversacional é Premium</p>
+              <p className="text-sm text-muted-foreground">
+                Converse com a IA sobre seu jardim e receba respostas personalizadas baseadas nas suas plantas.
+              </p>
+              <Link to="/planos">
+                <Button className="w-full"><Crown className="w-4 h-4 mr-2" />Assinar Premium</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
         {/* Quick suggestions */}
         <div className="flex flex-wrap gap-2 mb-3">
           {["Como está meu jardim?", "O que preciso fazer hoje?", "Quais plantas precisam de água?", "Alguma planta está morrendo?"].map(q => (
