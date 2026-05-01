@@ -1,15 +1,19 @@
 import { useState, useMemo } from "react";
-import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon } from "lucide-react";
+import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon, Crown } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
 import { computePlantStatus } from "@/lib/plantHealth";
+import { useRequirePremium } from "@/hooks/useRequirePremium";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
   const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
+  const { isPremium } = useSubscription();
+  const guard = useRequirePremium();
 
   // Calcula status real (saúde, necessidades) com base no tempo decorrido
   const plants = useMemo(
@@ -21,6 +25,8 @@ export default function MyGardenPage() {
   const [showFertilizerInfo, setShowFertilizerInfo] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data: anuncios } = useAnuncios();
+
+  const openAddModal = guard(() => setShowAddModal(true), "Adicionar plantas ao jardim");
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
     addPlant.mutate(catalogPlant);
@@ -101,11 +107,12 @@ export default function MyGardenPage() {
           <p className="text-sm text-muted-foreground">{plants.length} plantas no seu jardim</p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={openAddModal}
           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200 flex items-center gap-2"
+          title={isPremium ? "Adicionar planta" : "Disponível com Premium"}
         >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Adicionar</span>
+          {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
+          <span className="hidden sm:inline">{isPremium ? "Adicionar" : "Adicionar (Premium)"}</span>
         </button>
       </div>
 
@@ -204,11 +211,17 @@ export default function MyGardenPage() {
           <h3 className="font-heading text-lg font-bold text-foreground mb-2">Seu jardim está vazio</h3>
           <p className="text-sm text-muted-foreground mb-4">Adicione plantas do catálogo para começar!</p>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 inline-flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> Adicionar primeira planta
+            {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
+            {isPremium ? "Adicionar primeira planta" : "Assinar para adicionar plantas"}
           </button>
+          {!isPremium && (
+            <p className="text-xs text-muted-foreground mt-3">
+              🌟 Você pode visualizar e explorar o catálogo, mas precisa do plano Premium para adicionar plantas ao jardim.
+            </p>
+          )}
         </div>
       )}
 

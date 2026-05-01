@@ -26,6 +26,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PremiumGate } from "@/components/PremiumGate";
 
 const queryClient = new QueryClient();
 
@@ -58,20 +59,23 @@ function ProtectedRoutes() {
     <GardenLayout>
       <Routes>
         <Route path="/" element={<Navigate to="/meu-jardim" replace />} />
-        <Route path="/catalogo" element={<CatalogPage />} />
+        {/* Free (limitado): visualização do jardim e catálogo, e 1 diagnóstico/dia */}
         <Route path="/meu-jardim" element={<MyGardenPage />} />
-        <Route path="/adubacao" element={<FertilizationPage />} />
-        <Route path="/calendario" element={<CalendarPage />} />
-        <Route path="/diagnostico" element={<DiagnosisPage />} />
+        <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/diagnostico-ia" element={<DiagnosisAIPage />} />
-        <Route path="/planejamento" element={<PlanningPage />} />
-        <Route path="/dicas" element={<TipsPage />} />
-        <Route path="/ebook" element={<EbookPage />} />
-        <Route path="/assistente" element={<AssistantPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/percepcoes" element={<PercepcionsPage />} />
+        {/* Acesso livre */}
         <Route path="/planos" element={<PricingPage />} />
         <Route path="/checkout/return" element={<CheckoutReturnPage />} />
+        {/* Premium: bloqueado para Free */}
+        <Route path="/adubacao" element={<PremiumGate title="Adubação Inteligente 🌱" description="Receba recomendações personalizadas de adubação para cada planta do seu jardim."><FertilizationPage /></PremiumGate>} />
+        <Route path="/calendario" element={<PremiumGate title="Calendário do Jardim 📅" description="Programe regas, adubação e podas com lembretes automáticos."><CalendarPage /></PremiumGate>} />
+        <Route path="/diagnostico" element={<PremiumGate title="Diagnóstico Manual 🔍" description="Use o guia passo a passo para identificar problemas das suas plantas."><DiagnosisPage /></PremiumGate>} />
+        <Route path="/planejamento" element={<PremiumGate title="Planejamento do Jardim 📐" description="Calcule capacidade de vasos, jardineiras verticais e organize seu espaço."><PlanningPage /></PremiumGate>} />
+        <Route path="/dicas" element={<PremiumGate title="Dicas e Sugestões 💡" description="Conteúdo exclusivo de cuidados e curiosidades do jardim em casa."><TipsPage /></PremiumGate>} />
+        <Route path="/ebook" element={<PremiumGate title="E-book Jardim 360º 📖" description="Acesso completo ao guia digital para criar e cuidar do seu jardim."><EbookPage /></PremiumGate>} />
+        <Route path="/assistente" element={<PremiumGate title="Assistente IA 🤖" description="Converse com a IA para tirar dúvidas e cuidar das suas plantas em tempo real."><AssistantPage /></PremiumGate>} />
+        <Route path="/dashboard" element={<PremiumGate title="Dashboard Inteligente 📊" description="Visão geral do Health Score do seu jardim com insights de IA."><DashboardPage /></PremiumGate>} />
+        <Route path="/percepcoes" element={<PremiumGate title="Percepções IA 🧠" description="Recomendações inteligentes e análises personalizadas do seu jardim."><PercepcionsPage /></PremiumGate>} />
         <Route path="*" element={<Navigate to="/meu-jardim" replace />} />
       </Routes>
     </GardenLayout>
