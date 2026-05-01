@@ -45,8 +45,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "auth_required", message: "Sessão expirada. Faça login novamente." }, 401);
     }
 
-    // Determine plan
-    const env = (req.headers.get("x-stripe-env") === "live" ? "live" : "sandbox") as "sandbox" | "live";
+    // Parse body once (need both env + image)
+    const body = await req.json().catch(() => null);
+    const envInput = body?.environment;
+    const env: "sandbox" | "live" = envInput === "live" ? "live" : "sandbox";
+
     const { data: subData } = await supabase
       .from("subscriptions")
       .select("status, current_period_end, price_id")
