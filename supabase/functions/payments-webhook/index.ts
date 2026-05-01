@@ -87,6 +87,29 @@ Deno.serve(async (req) => {
   try {
     const event = await verifyWebhook(req, env);
     switch (event.type) {
+      case "checkout.session.completed": {
+        // Fallback in case subscription.created arrives without metadata.
+        // Stripe also fires subscription.created — upsert by stripe_subscription_id keeps it idempotent.
+        const session: any = event.data.object;
+        const userId = session.metadata?.userId;
+        const subscriptionId = session.subscription;
+        if (userId && subscriptionId && session.mode === "subscription") {
+          await getSupabase().from("subscriptions").upsert(
+            {
+              user_id: userId,
+              stripe_subscription_id: subscriptionId,
+              stripe_customer_id: session.customer,
+              product_id: "pending",
+              price_id: "pending",
+              status: "active",
+              environment: env,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "stripe_subscription_id" },
+          );
+        }
+        break;
+      }
       case "customer.subscription.created":
         await handleSubscriptionCreated(event.data.object, env);
         break;
