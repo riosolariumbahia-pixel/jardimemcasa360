@@ -30,6 +30,8 @@ export function GardenSidebar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
+  const { isPremium } = useSubscription();
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
