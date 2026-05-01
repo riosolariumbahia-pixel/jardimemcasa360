@@ -90,19 +90,34 @@ export function GardenSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-2 space-y-1 scroll-thin overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/meu-jardim"}
-              className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/15 hover:text-sidebar-foreground transition-all duration-200 border-l-[3px] border-transparent"
-              activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
-              onClick={() => setMobileOpen(false)}
-            >
-              <item.Icon className="w-[18px] h-[18px] shrink-0" />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const isLocked = item.tier === "premium" && !isPremium;
+            const isLimited = item.tier === "free-limited" && !isPremium;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === "/meu-jardim"}
+                className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent/15 hover:text-sidebar-foreground transition-all duration-200 border-l-[3px] border-transparent"
+                activeClassName="bg-sidebar-accent/15 text-sidebar-foreground border-l-[3px] !border-garden-green-pale font-semibold"
+                onClick={() => setMobileOpen(false)}
+              >
+                <item.Icon className="w-[18px] h-[18px] shrink-0" />
+                <span className="flex-1 truncate">{item.label}</span>
+                {isLocked && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold bg-amber-400/20 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-300/30">
+                    <Lock className="w-2.5 h-2.5" />
+                    PRO
+                  </span>
+                )}
+                {isLimited && (
+                  <span className="text-[10px] font-semibold text-sidebar-foreground/50">
+                    Grátis
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Footer */}
