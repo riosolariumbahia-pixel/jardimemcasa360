@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Eye, AlertTriangle, CheckCircle, AlertCircle, Lightbulb, Send, Loader2, Sparkles, Droplets, Leaf, Scissors, MessageCircle, Bot } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Eye, AlertTriangle, CheckCircle, AlertCircle, Lightbulb, Send, Loader2, Sparkles, Droplets, Leaf, Scissors, MessageCircle, Bot, Crown, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGardenPlants } from "@/hooks/useGardenPlants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { useAnuncios } from "@/hooks/useAnuncios";
@@ -31,11 +33,14 @@ function buildPlantContext(plants: any[]): string {
 
 export default function PercepcionsPage() {
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
   const { plants: gardenPlants } = useGardenPlants();
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const FREE_RECS_PREVIEW = 3;
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
@@ -110,6 +115,10 @@ export default function PercepcionsPage() {
 
   // ─── Bloco C: Chat ───
   const sendMessage = async (text?: string) => {
+    if (!isPremium) {
+      toast.info("Assistente conversacional é exclusivo Premium.");
+      return;
+    }
     const msg = text || input.trim();
     if (!msg || streaming) return;
     setInput("");
@@ -250,28 +259,63 @@ export default function PercepcionsPage() {
                 <p className="text-sm text-foreground font-medium">{diagnostico!.texto}</p>
               </CardContent>
             </Card>
-            {diagnostico!.recomendacoes.length > 0 && (
-              <div className="space-y-2">
-                {diagnostico!.recomendacoes.map((rec, i) => (
-                  <Card key={i} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
-                    <CardContent className="p-3 flex items-start gap-3">
-                      <span className="text-primary mt-0.5 font-bold text-sm">→</span>
-                      <p className="text-sm text-foreground">{rec}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            {diagnostico!.recomendacoes.length > 0 && (() => {
+              const recs = diagnostico!.recomendacoes;
+              const visible = isPremium ? recs : recs.slice(0, FREE_RECS_PREVIEW);
+              const hidden = isPremium ? 0 : Math.max(0, recs.length - FREE_RECS_PREVIEW);
+              return (
+                <div className="space-y-2">
+                  {visible.map((rec, i) => (
+                    <Card key={i} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+                      <CardContent className="p-3 flex items-start gap-3">
+                        <span className="text-primary mt-0.5 font-bold text-sm">→</span>
+                        <p className="text-sm text-foreground">{rec}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {hidden > 0 && (
+                    <Card className="border-2 border-primary/40 bg-primary/5">
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <Lock className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-foreground">+{hidden} recomendações Premium</p>
+                          <p className="text-xs text-muted-foreground">Veja todas as recomendações com o plano Premium.</p>
+                        </div>
+                        <Link to="/planos">
+                          <Button size="sm"><Crown className="w-4 h-4 mr-1" />Ver</Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}
 
-      {/* ─── Bloco C: Assistente Conversacional ─── */}
+      {/* ─── Bloco C: Assistente Conversacional (Premium) ─── */}
       <div>
         <h2 className="font-heading text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-primary" /> Assistente do Jardim
+          {!isPremium && <Crown className="w-4 h-4 text-primary" />}
         </h2>
 
+        {!isPremium ? (
+          <Card className="border-2 border-primary/40 bg-primary/5">
+            <CardContent className="p-6 text-center space-y-3">
+              <Lock className="w-10 h-10 mx-auto text-primary" />
+              <p className="font-semibold text-foreground">Assistente conversacional é Premium</p>
+              <p className="text-sm text-muted-foreground">
+                Converse com a IA sobre seu jardim e receba respostas personalizadas baseadas nas suas plantas.
+              </p>
+              <Link to="/planos">
+                <Button className="w-full"><Crown className="w-4 h-4 mr-2" />Assinar Premium</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
         {/* Quick suggestions */}
         <div className="flex flex-wrap gap-2 mb-3">
           {["Como está meu jardim?", "O que preciso fazer hoje?", "Quais plantas precisam de água?", "Alguma planta está morrendo?"].map(q => (
@@ -339,6 +383,8 @@ export default function PercepcionsPage() {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
 
         {/* Anúncio contextual */}
         <AnuncioContextual />
