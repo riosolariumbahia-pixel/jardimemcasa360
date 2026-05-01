@@ -1,4 +1,5 @@
 import { Leaf, TreeDeciduous, Calendar, Stethoscope, ClipboardList, Lightbulb, BookOpen, Menu, X, Sprout, Beaker, LogOut, Bot, Camera, Activity, Eye, Crown, Lock } from "lucide-react";
+import logoMeuJardim from "@/assets/logo-meujardim360.png";
 import { NavLink } from "@/components/NavLink";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,16 +75,18 @@ export function GardenSidebar() {
         </button>
 
         {/* Logo */}
-        <div className="px-6 py-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-sidebar-accent/20 flex items-center justify-center">
-            <Sprout className="w-6 h-6 text-garden-green-pale" />
-          </div>
+        <div className="px-4 py-5 flex items-center gap-3">
+          <img
+            src={logoMeuJardim}
+            alt="meujardim360 - Cuide, Plante, Transforme"
+            className="w-12 h-12 rounded-full bg-white object-contain p-1 shadow-sm"
+          />
           <div>
-            <h1 className="font-heading text-lg font-bold text-sidebar-foreground">
-              Jardim 360º
+            <h1 className="font-heading text-lg font-bold text-sidebar-foreground leading-tight">
+              meujardim360
             </h1>
-            <p className="text-xs text-sidebar-foreground/60">
-              Seu jardim em casa
+            <p className="text-[11px] text-sidebar-foreground/60 tracking-wide">
+              Cuide • Plante • Transforme
             </p>
           </div>
         </div>
