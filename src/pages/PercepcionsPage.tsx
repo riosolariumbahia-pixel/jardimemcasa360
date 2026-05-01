@@ -259,18 +259,37 @@ export default function PercepcionsPage() {
                 <p className="text-sm text-foreground font-medium">{diagnostico!.texto}</p>
               </CardContent>
             </Card>
-            {diagnostico!.recomendacoes.length > 0 && (
-              <div className="space-y-2">
-                {diagnostico!.recomendacoes.map((rec, i) => (
-                  <Card key={i} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
-                    <CardContent className="p-3 flex items-start gap-3">
-                      <span className="text-primary mt-0.5 font-bold text-sm">→</span>
-                      <p className="text-sm text-foreground">{rec}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            {diagnostico!.recomendacoes.length > 0 && (() => {
+              const recs = diagnostico!.recomendacoes;
+              const visible = isPremium ? recs : recs.slice(0, FREE_RECS_PREVIEW);
+              const hidden = isPremium ? 0 : Math.max(0, recs.length - FREE_RECS_PREVIEW);
+              return (
+                <div className="space-y-2">
+                  {visible.map((rec, i) => (
+                    <Card key={i} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+                      <CardContent className="p-3 flex items-start gap-3">
+                        <span className="text-primary mt-0.5 font-bold text-sm">→</span>
+                        <p className="text-sm text-foreground">{rec}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {hidden > 0 && (
+                    <Card className="border-2 border-primary/40 bg-primary/5">
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <Lock className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-foreground">+{hidden} recomendações Premium</p>
+                          <p className="text-xs text-muted-foreground">Veja todas as recomendações com o plano Premium.</p>
+                        </div>
+                        <Link to="/planos">
+                          <Button size="sm"><Crown className="w-4 h-4 mr-1" />Ver</Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}
