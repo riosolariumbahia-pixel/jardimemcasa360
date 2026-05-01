@@ -92,7 +92,6 @@ Deno.serve(async (req) => {
       }, 402);
     }
 
-    const body = await req.json().catch(() => null);
     const imagem = typeof body?.imagem === "string" ? body.imagem.trim() : "";
     if (!imagem) return jsonResponse({ error: "Campo imagem é obrigatório." }, 400);
 
