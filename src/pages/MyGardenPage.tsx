@@ -107,11 +107,12 @@ export default function MyGardenPage() {
           <p className="text-sm text-muted-foreground">{plants.length} plantas no seu jardim</p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={openAddModal}
           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200 flex items-center gap-2"
+          title={isPremium ? "Adicionar planta" : "Disponível com Premium"}
         >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Adicionar</span>
+          {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
+          <span className="hidden sm:inline">{isPremium ? "Adicionar" : "Adicionar (Premium)"}</span>
         </button>
       </div>
 
