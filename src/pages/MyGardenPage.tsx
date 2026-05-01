@@ -211,11 +211,17 @@ export default function MyGardenPage() {
           <h3 className="font-heading text-lg font-bold text-foreground mb-2">Seu jardim está vazio</h3>
           <p className="text-sm text-muted-foreground mb-4">Adicione plantas do catálogo para começar!</p>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 inline-flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> Adicionar primeira planta
+            {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
+            {isPremium ? "Adicionar primeira planta" : "Assinar para adicionar plantas"}
           </button>
+          {!isPremium && (
+            <p className="text-xs text-muted-foreground mt-3">
+              🌟 Você pode visualizar e explorar o catálogo, mas precisa do plano Premium para adicionar plantas ao jardim.
+            </p>
+          )}
         </div>
       )}
 
