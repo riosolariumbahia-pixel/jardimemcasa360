@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Search, Sun, Droplets, Thermometer, Flower2, TreePine, Leaf } from "lucide-react";
+import { Search, Sun, Droplets, Thermometer, Flower2, TreePine, Leaf, Crown, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export interface Plant {
   name: string;
