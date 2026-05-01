@@ -33,11 +33,14 @@ function buildPlantContext(plants: any[]): string {
 
 export default function PercepcionsPage() {
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
   const { plants: gardenPlants } = useGardenPlants();
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const FREE_RECS_PREVIEW = 3;
 
   // Auto-scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
