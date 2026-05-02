@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getAuthedUser, hasFullAccess, type AccessEnv } from "../_shared/access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Modos que exigem acesso Premium (assinatura ativa real OU trial vigente).
+const PREMIUM_MODES = new Set(["assistant", "insights", "percepcoes"]);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -13,7 +17,36 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { messages, mode, imageBase64, imageUrl } = await req.json();
+    const body = await req.json();
+    const { messages, mode, imageBase64, imageUrl } = body;
+    const envInput = body?.environment;
+    const env: AccessEnv = envInput === "live" ? "live" : "sandbox";
+
+    // ==== Validação server-side de acesso ====
+    // Auth obrigatória para qualquer chamada.
+    const user = await getAuthedUser(req);
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "auth_required", message: "Faça login para continuar." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Modos Premium: bloquear no servidor mesmo se o frontend deixar passar.
+    if (PREMIUM_MODES.has(mode)) {
+      const ok = await hasFullAccess(user.id, env);
+      if (!ok) {
+        return new Response(
+          JSON.stringify({
+            error: "premium_required",
+            message: "Este recurso é exclusivo do plano Premium. Assine para continuar.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+    // ==== Fim da validação ====
+
 
     let systemPrompt = `Você é um especialista em plantas domésticas.
 

@@ -13,13 +13,13 @@ export interface SubscriptionInfo {
 
 const PREMIUM_PRICE_IDS = new Set(["premium_monthly"]);
 
-function isActiveStatus(status: string | null, end: string | null, cancelAtPeriodEnd: boolean): boolean {
+function isActiveStatus(status: string | null, end: string | null): boolean {
   if (!status) return false;
+  // Cancelamento imediato: status "canceled" / "incomplete" / "unpaid" / "paused" nunca dão acesso.
+  // Webhook do Stripe é a única fonte de verdade.
+  if (!["active", "trialing", "past_due"].includes(status)) return false;
   const future = !end || new Date(end).getTime() > Date.now();
-  // Cancelamento imediato: status "canceled" revoga acesso na hora.
-  if (status === "canceled") return false;
-  if (["active", "trialing", "past_due"].includes(status) && future) return true;
-  return false;
+  return future;
 }
 
 export function useSubscription(): SubscriptionInfo & { refetch: () => void } {
@@ -48,7 +48,7 @@ export function useSubscription(): SubscriptionInfo & { refetch: () => void } {
 
     const status = data?.status ?? null;
     const end = data?.current_period_end ?? null;
-    const isPremium = !!data && PREMIUM_PRICE_IDS.has(data.price_id) && isActiveStatus(status, end, !!data?.cancel_at_period_end);
+    const isPremium = !!data && PREMIUM_PRICE_IDS.has(data.price_id) && isActiveStatus(status, end);
 
     setInfo({
       isPremium,
