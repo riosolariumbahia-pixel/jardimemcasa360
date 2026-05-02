@@ -48,7 +48,7 @@ export function useSubscription(): SubscriptionInfo & { refetch: () => void } {
 
     const status = data?.status ?? null;
     const end = data?.current_period_end ?? null;
-    const isPremium = !!data && PREMIUM_PRICE_IDS.has(data.price_id) && isActiveStatus(status, end, !!data?.cancel_at_period_end);
+    const isPremium = !!data && PREMIUM_PRICE_IDS.has(data.price_id) && isActiveStatus(status, end);
 
     setInfo({
       isPremium,
