@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Crown, Lock, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useAccessControl } from "@/hooks/useAccessControl";
 
 interface PremiumGateProps {
   children: ReactNode;
@@ -21,7 +21,7 @@ export function PremiumGate({
   title = "Recurso Premium 🌟",
   description = "Assine o plano Premium para desbloquear todas as funcionalidades inteligentes do Jardim 360º.",
 }: PremiumGateProps) {
-  const { isPremium, loading } = useSubscription();
+  const { hasFullAccess, loading } = useAccessControl();
   const navigate = useNavigate();
 
   if (loading) {
@@ -35,7 +35,7 @@ export function PremiumGate({
     );
   }
 
-  if (isPremium) return <>{children}</>;
+  if (hasFullAccess) return <>{children}</>;
 
   return (
     <div className="relative min-h-[80vh]">

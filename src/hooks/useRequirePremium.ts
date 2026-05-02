@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useAccessControl } from "@/hooks/useAccessControl";
 
 /**
  * Retorna uma função `guard` que intercepta uma ação:
@@ -12,7 +12,7 @@ import { useSubscription } from "@/hooks/useSubscription";
  * <button onClick={guard(() => addPlant.mutate(p), "Adicionar plantas")}>...</button>
  */
 export function useRequirePremium() {
-  const { isPremium, loading } = useSubscription();
+  const { hasFullAccess, loading } = useAccessControl();
   const navigate = useNavigate();
 
   return function guard<T extends (...args: any[]) => any>(
@@ -21,7 +21,7 @@ export function useRequirePremium() {
   ) {
     return ((...args: Parameters<T>) => {
       if (loading) return;
-      if (isPremium) return callback(...args);
+      if (hasFullAccess) return callback(...args);
       toast.info(`${featureName} é exclusivo do plano Premium 🌟`, {
         description: "Assine por R$ 19,90/mês e desbloqueie tudo.",
         action: {
