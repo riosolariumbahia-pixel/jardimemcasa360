@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { hasFullAccess, type AccessEnv } from "../_shared/access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,25 +49,11 @@ Deno.serve(async (req) => {
     // Parse body once (need both env + image)
     const body = await req.json().catch(() => null);
     const envInput = body?.environment;
-    const env: "sandbox" | "live" = envInput === "live" ? "live" : "sandbox";
+    const env: AccessEnv = envInput === "live" ? "live" : "sandbox";
 
-    const { data: subData } = await supabase
-      .from("subscriptions")
-      .select("status, current_period_end, price_id")
-      .eq("user_id", user.id)
-      .eq("environment", env)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Acesso completo (Premium real OU trial vigente) — fonte única: SQL `has_full_access`
+    const isPremium = await hasFullAccess(user.id, env);
 
-    const isPremium = (() => {
-      if (!subData) return false;
-      if (subData.price_id !== "premium_monthly") return false;
-      const end = subData.current_period_end ? new Date(subData.current_period_end as string).getTime() : Infinity;
-      const future = end > Date.now();
-      const s = subData.status;
-      return future && (s === "active" || s === "trialing" || s === "past_due" || s === "canceled");
-    })();
 
     const limit = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
     const today = new Date().toISOString().slice(0, 10);
