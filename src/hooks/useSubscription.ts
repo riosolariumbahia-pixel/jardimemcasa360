@@ -63,6 +63,20 @@ export function useSubscription(): SubscriptionInfo & { refetch: () => void } {
     void fetchSub();
   }, [fetchSub]);
 
+  // Refetch ao voltar para a aba (ex: após retorno do checkout do Stripe).
+  useEffect(() => {
+    const onFocus = () => void fetchSub();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void fetchSub();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fetchSub]);
+
   useEffect(() => {
     if (!user) return;
     // Nome único por instância do hook para evitar conflito quando o canal

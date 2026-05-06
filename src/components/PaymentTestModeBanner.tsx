@@ -1,19 +1,20 @@
 const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
 
+/**
+ * Banner de aviso de modo de teste.
+ *
+ * - Aparece SOMENTE quando o token Stripe carregado é de teste (pk_test_…),
+ *   o que só acontece no ambiente de preview do Lovable.
+ * - Em produção (jardimemcasa360.lovable.app e domínios publicados) o token
+ *   é pk_live_… e este componente NÃO renderiza nada.
+ * - Cliente final nunca vê esse banner.
+ */
 export function PaymentTestModeBanner() {
   if (!clientToken?.startsWith("pk_test_")) return null;
 
   return (
-    <div className="w-full bg-orange-100 border-b border-orange-300 px-4 py-2 text-center text-sm text-orange-800">
-      Pagamentos no preview estão em modo de teste.{" "}
-      <a
-        href="https://docs.lovable.dev/features/payments#test-and-live-environments"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline font-medium"
-      >
-        Saiba mais
-      </a>
+    <div className="w-full bg-orange-500 text-white px-4 py-2 text-center text-sm font-medium shadow-md">
+      ⚠️ Ambiente de TESTE — pagamentos não são reais. Use cartão 4242 4242 4242 4242.
     </div>
   );
 }
