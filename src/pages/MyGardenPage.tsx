@@ -253,7 +253,13 @@ export default function MyGardenPage() {
         </div>
       )}
 
-      {/* Empty state */}
+      {plantsNeedingFertilizer > 0 && (
+        <CompostoCard
+          context="nutrientes"
+          title="Suas plantas precisam de nutrientes 🌿"
+          description={`${plantsNeedingFertilizer} planta(s) com adubação atrasada. Conheça nosso composto orgânico.`}
+        />
+      )}
       {plants.length === 0 && (
         <div className="garden-card p-12 text-center animate-fade-in-up animate-delay-200">
           <span className="text-5xl block mb-4">🌱</span>
