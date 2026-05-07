@@ -56,7 +56,13 @@ export function useGardenPlants() {
         light: plant.light,
         difficulty: plant.difficulty,
       });
-      if (error) throw error;
+      if (error) {
+        // Trigger server-side: limite de 3 plantas no plano Free
+        if (error.message?.includes("PLANT_LIMIT_REACHED")) {
+          throw new Error("PLANT_LIMIT_REACHED");
+        }
+        throw error;
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["garden-plants"] }),
   });

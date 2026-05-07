@@ -1,19 +1,21 @@
 import { useState, useMemo } from "react";
-import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon, Crown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon, Crown, Lock } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
 import { computePlantStatus } from "@/lib/plantHealth";
-import { useRequirePremium } from "@/hooks/useRequirePremium";
-import { useSubscription } from "@/hooks/useSubscription";
+import { usePlan } from "@/hooks/usePlan";
+import { CompostoCard } from "@/components/CompostoCard";
+import { toast } from "sonner";
 
 export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
+  const navigate = useNavigate();
   const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
-  const { isPremium } = useSubscription();
-  const guard = useRequirePremium();
+  const plan = usePlan();
 
   // Calcula status real (saúde, necessidades) com base no tempo decorrido
   const plants = useMemo(
@@ -26,10 +28,33 @@ export default function MyGardenPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data: anuncios } = useAnuncios();
 
-  const openAddModal = guard(() => setShowAddModal(true), "Adicionar plantas ao jardim");
+  const openAddModal = () => {
+    if (!plan.canAddPlant) {
+      toast.info("Você atingiu o limite de 3 plantas 😕", {
+        description: "Desbloqueie plantas ilimitadas com o plano PLUS.",
+        action: { label: "Ver planos", onClick: () => navigate("/planos") },
+      });
+      navigate("/planos");
+      return;
+    }
+    setShowAddModal(true);
+  };
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
-    addPlant.mutate(catalogPlant);
+    addPlant.mutate(catalogPlant, {
+      onError: (err: any) => {
+        if (err?.message === "PLANT_LIMIT_REACHED") {
+          toast.info("Limite de 3 plantas atingido 🌱", {
+            description: "Assine o PLUS para plantas ilimitadas.",
+            action: { label: "Assinar", onClick: () => navigate("/planos") },
+          });
+          setShowAddModal(false);
+          navigate("/planos");
+        } else {
+          toast.error("Erro ao adicionar planta");
+        }
+      },
+    });
     setShowAddModal(false);
     setAddSearch("");
   };
@@ -104,17 +129,41 @@ export default function MyGardenPage() {
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground">Meu Jardim 🌳</h2>
-          <p className="text-sm text-muted-foreground">{plants.length} plantas no seu jardim</p>
+          <p className="text-sm text-muted-foreground">
+            {plants.length}{plan.plantLimit ? ` / ${plan.plantLimit}` : ""} plantas no seu jardim
+          </p>
         </div>
         <button
           onClick={openAddModal}
           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200 flex items-center gap-2"
-          title={isPremium ? "Adicionar planta" : "Disponível com Premium"}
+          title={plan.canAddPlant ? "Adicionar planta" : "Limite Free atingido"}
         >
-          {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
-          <span className="hidden sm:inline">{isPremium ? "Adicionar" : "Adicionar (Premium)"}</span>
+          {plan.canAddPlant ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+          <span className="hidden sm:inline">Adicionar</span>
         </button>
       </div>
+
+      {plan.isFree && plants.length >= (plan.plantLimit ?? 3) && (
+        <div className="garden-card p-4 border-2 border-primary/40 bg-garden-green-mist animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <Crown className="w-6 h-6 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm text-foreground mb-1">
+                🌱 Você atingiu o limite de 3 plantas
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Desbloqueie plantas ilimitadas com o PLUS — pagamento único de R$ 19,90.
+              </p>
+              <button
+                onClick={() => navigate("/planos")}
+                className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-md font-semibold hover:opacity-90"
+              >
+                Desbloquear acesso vitalício
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Critical alert banner */}
       {plantsCritical > 0 && (
@@ -204,7 +253,13 @@ export default function MyGardenPage() {
         </div>
       )}
 
-      {/* Empty state */}
+      {plantsNeedingFertilizer > 0 && (
+        <CompostoCard
+          context="nutrientes"
+          title="Suas plantas precisam de nutrientes 🌿"
+          description={`${plantsNeedingFertilizer} planta(s) com adubação atrasada. Conheça nosso composto orgânico.`}
+        />
+      )}
       {plants.length === 0 && (
         <div className="garden-card p-12 text-center animate-fade-in-up animate-delay-200">
           <span className="text-5xl block mb-4">🌱</span>
@@ -214,12 +269,11 @@ export default function MyGardenPage() {
             onClick={openAddModal}
             className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 inline-flex items-center gap-2"
           >
-            {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
-            {isPremium ? "Adicionar primeira planta" : "Assinar para adicionar plantas"}
+            <Plus className="w-4 h-4" /> Adicionar primeira planta
           </button>
-          {!isPremium && (
+          {plan.isFree && (
             <p className="text-xs text-muted-foreground mt-3">
-              🌟 Você pode visualizar e explorar o catálogo, mas precisa do plano Premium para adicionar plantas ao jardim.
+              🌱 Plano gratuito: até 3 plantas. Para ilimitado, conheça o PLUS.
             </p>
           )}
         </div>
