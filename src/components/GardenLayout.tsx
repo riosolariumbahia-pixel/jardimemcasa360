@@ -1,5 +1,6 @@
 import { GardenSidebar } from "./GardenSidebar";
 import { TrialBanner } from "./TrialBanner";
+import { CompostoFAB } from "./CompostoFAB";
 
 interface GardenLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,8 @@ export function GardenLayout({ children }: GardenLayoutProps) {
         <TrialBanner />
         {children}
       </main>
+      <CompostoFAB />
     </div>
   );
 }
+
