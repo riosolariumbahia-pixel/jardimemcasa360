@@ -90,6 +90,8 @@ export default function HomePage() {
         )}
       </section>
 
+      <CompostoCard context="home" />
+
       <section className="animate-fade-in-up animate-delay-300">
         <h3 className="font-heading text-lg font-semibold text-foreground mb-4">Dicas do Dia 💡</h3>
         <div className="space-y-3">
