@@ -1,6 +1,7 @@
 import { Droplets, Sun, Leaf, TrendingUp, Plus, Sprout } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useGardenPlants } from "@/hooks/useGardenPlants";
+import { CompostoCard } from "@/components/CompostoCard";
 import heroImage from "@/assets/hero-garden.jpg";
 
 const quickStats = [
