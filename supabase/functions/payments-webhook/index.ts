@@ -90,22 +90,48 @@ Deno.serve(async (req) => {
       case "checkout.session.completed": {
         const session: any = event.data.object;
         const userId = session.metadata?.userId;
-        const subscriptionId = session.subscription;
-        if (userId && subscriptionId && session.mode === "subscription") {
-          // Fetch the full subscription from Stripe so we have real price/product/period
-          // data immediately — don't wait for customer.subscription.* to arrive later.
+        if (!userId) break;
+
+        if (session.mode === "subscription" && session.subscription) {
           try {
             const stripe = createStripeClient(env);
-            const sub: any = await stripe.subscriptions.retrieve(subscriptionId, {
+            const sub: any = await stripe.subscriptions.retrieve(session.subscription, {
               expand: ["items.data.price"],
             });
-            // Ensure metadata has userId (helps downstream events)
             if (!sub.metadata?.userId) {
-              await stripe.subscriptions.update(subscriptionId, { metadata: { userId } });
+              await stripe.subscriptions.update(session.subscription, { metadata: { userId } });
             }
             await handleSubscriptionCreated({ ...sub, metadata: { ...sub.metadata, userId } }, env);
           } catch (err) {
             console.error("Failed to retrieve subscription on checkout.completed:", err);
+          }
+        } else if (session.mode === "payment") {
+          // Pagamento único — PLUS vitalício
+          try {
+            const stripe = createStripeClient(env);
+            const full: any = await stripe.checkout.sessions.retrieve(session.id, {
+              expand: ["line_items.data.price"],
+            });
+            const line = full.line_items?.data?.[0];
+            const price = line?.price;
+            const priceId = price?.metadata?.lovable_external_id || price?.id;
+            const productId = price?.product;
+
+            await getSupabase().from("lifetime_purchases").upsert(
+              {
+                user_id: userId,
+                stripe_session_id: session.id,
+                stripe_customer_id: session.customer ?? null,
+                product_id: productId ?? "unknown",
+                price_id: priceId ?? "unknown",
+                amount_cents: session.amount_total ?? null,
+                currency: session.currency ?? null,
+                environment: env,
+              },
+              { onConflict: "stripe_session_id" },
+            );
+          } catch (err) {
+            console.error("Failed to record lifetime purchase:", err);
           }
         }
         break;
