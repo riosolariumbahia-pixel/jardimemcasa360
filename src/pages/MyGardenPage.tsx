@@ -129,17 +129,41 @@ export default function MyGardenPage() {
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
           <h2 className="font-heading text-2xl font-bold text-foreground">Meu Jardim 🌳</h2>
-          <p className="text-sm text-muted-foreground">{plants.length} plantas no seu jardim</p>
+          <p className="text-sm text-muted-foreground">
+            {plants.length}{plan.plantLimit ? ` / ${plan.plantLimit}` : ""} plantas no seu jardim
+          </p>
         </div>
         <button
           onClick={openAddModal}
           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 active:scale-[0.97] transition-all duration-200 flex items-center gap-2"
-          title={isPremium ? "Adicionar planta" : "Disponível com Premium"}
+          title={plan.canAddPlant ? "Adicionar planta" : "Limite Free atingido"}
         >
-          {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
-          <span className="hidden sm:inline">{isPremium ? "Adicionar" : "Adicionar (Premium)"}</span>
+          {plan.canAddPlant ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+          <span className="hidden sm:inline">Adicionar</span>
         </button>
       </div>
+
+      {plan.isFree && plants.length >= (plan.plantLimit ?? 3) && (
+        <div className="garden-card p-4 border-2 border-primary/40 bg-garden-green-mist animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <Crown className="w-6 h-6 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm text-foreground mb-1">
+                🌱 Você atingiu o limite de 3 plantas
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Desbloqueie plantas ilimitadas com o PLUS — pagamento único de R$ 19,90.
+              </p>
+              <button
+                onClick={() => navigate("/planos")}
+                className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-md font-semibold hover:opacity-90"
+              >
+                Desbloquear acesso vitalício
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Critical alert banner */}
       {plantsCritical > 0 && (
