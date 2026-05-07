@@ -2,65 +2,56 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 export interface AccessInfo {
   loading: boolean;
-  isPremium: boolean;
-  isOnTrial: boolean;
+  isPremium: boolean;     // PRO (assinatura ativa)
+  isOnTrial: boolean;     // mantido por compatibilidade — sempre false agora
   trialExpiresAt: string | null;
   trialMsRemaining: number;
-  hasFullAccess: boolean; // trial ativo OU assinante
+  hasFullAccess: boolean; // PLUS vitalício OU PRO
 }
 
 /**
- * Controle global de acesso:
- * - hasFullAccess = true se o usuário está dentro do trial OU tem assinatura ativa
- * - O trial é de 24h a partir do cadastro, definido UMA vez via trigger no banco
- *   (anti-burla: nunca é resetado em logout/login)
+ * Controle de acesso (compatibilidade): hasFullAccess = PLUS vitalício OU PRO.
+ * Trial removido conforme o novo modelo Free puro com 3 plantas.
  */
 export function useAccessControl(): AccessInfo {
   const { user, loading: authLoading } = useAuth();
   const sub = useSubscription();
-  const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [now, setNow] = useState(() => Date.now());
+  const [hasLifetime, setHasLifetime] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async () => {
+  const fetchLifetime = useCallback(async () => {
     if (!user) {
-      setTrialExpiresAt(null);
-      setProfileLoading(false);
+      setHasLifetime(false);
+      setLoading(false);
       return;
     }
-    setProfileLoading(true);
+    setLoading(true);
     const { data } = await supabase
-      .from("profiles")
-      .select("trial_expires_at")
+      .from("lifetime_purchases" as any)
+      .select("id")
       .eq("user_id", user.id)
-      .maybeSingle();
-    setTrialExpiresAt((data as any)?.trial_expires_at ?? null);
-    setProfileLoading(false);
+      .eq("environment", getStripeEnvironment())
+      .limit(1);
+    setHasLifetime(!!data && data.length > 0);
+    setLoading(false);
   }, [user]);
 
   useEffect(() => {
-    void fetchProfile();
-  }, [fetchProfile]);
+    void fetchLifetime();
+  }, [fetchLifetime]);
 
-  // Atualiza "agora" a cada minuto para o countdown do trial.
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const trialMs = trialExpiresAt ? new Date(trialExpiresAt).getTime() - now : 0;
-  const isOnTrial = trialMs > 0;
-  const hasFullAccess = sub.isPremium || isOnTrial;
+  const hasFullAccess = sub.isPremium || hasLifetime;
 
   return {
-    loading: authLoading || sub.loading || profileLoading,
+    loading: authLoading || sub.loading || loading,
     isPremium: sub.isPremium,
-    isOnTrial,
-    trialExpiresAt,
-    trialMsRemaining: Math.max(0, trialMs),
+    isOnTrial: false,
+    trialExpiresAt: null,
+    trialMsRemaining: 0,
     hasFullAccess,
   };
 }
