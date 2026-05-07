@@ -361,6 +361,45 @@ export type Database = {
         }
         Relationships: []
       }
+      lifetime_purchases: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          environment: string
+          id: string
+          price_id: string
+          product_id: string
+          stripe_customer_id: string | null
+          stripe_session_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          environment?: string
+          id?: string
+          price_id: string
+          product_id: string
+          stripe_customer_id?: string | null
+          stripe_session_id: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          environment?: string
+          id?: string
+          price_id?: string
+          product_id?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -539,11 +578,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_add_plant: {
+        Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
+      }
+      get_user_plan: {
+        Args: { check_env?: string; user_uuid: string }
+        Returns: string
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
       }
+      has_ai_access: {
+        Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
+      }
       has_full_access: {
+        Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
+      }
+      has_lifetime_plus: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
       }
