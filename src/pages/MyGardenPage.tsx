@@ -263,12 +263,11 @@ export default function MyGardenPage() {
             onClick={openAddModal}
             className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 inline-flex items-center gap-2"
           >
-            {isPremium ? <Plus className="w-4 h-4" /> : <Crown className="w-4 h-4" />}
-            {isPremium ? "Adicionar primeira planta" : "Assinar para adicionar plantas"}
+            <Plus className="w-4 h-4" /> Adicionar primeira planta
           </button>
-          {!isPremium && (
+          {plan.isFree && (
             <p className="text-xs text-muted-foreground mt-3">
-              🌟 Você pode visualizar e explorar o catálogo, mas precisa do plano Premium para adicionar plantas ao jardim.
+              🌱 Plano gratuito: até 3 plantas. Para ilimitado, conheça o PLUS.
             </p>
           )}
         </div>
