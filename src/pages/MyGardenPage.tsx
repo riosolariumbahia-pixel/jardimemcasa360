@@ -1,19 +1,21 @@
 import { useState, useMemo } from "react";
-import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon, Crown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Droplets, Scissors, Leaf, Plus, Heart, Trash2, X, Search, ShoppingCart, AlertTriangle, AlertOctagon, Crown, Lock } from "lucide-react";
 import { plants as catalogPlants, type Plant as CatalogPlant } from "./CatalogPage";
 import { useGardenPlants, type GardenPlantDB } from "@/hooks/useGardenPlants";
 import { useAnuncios } from "@/hooks/useAnuncios";
 import AnuncioCard from "@/components/AnuncioCard";
 import { computePlantStatus } from "@/lib/plantHealth";
-import { useRequirePremium } from "@/hooks/useRequirePremium";
-import { useSubscription } from "@/hooks/useSubscription";
+import { usePlan } from "@/hooks/usePlan";
+import { CompostoCard } from "@/components/CompostoCard";
+import { toast } from "sonner";
 
 export type { GardenPlantDB as GardenPlant };
 
 export default function MyGardenPage() {
+  const navigate = useNavigate();
   const { plants: rawPlants, isLoading, addPlant, updatePlant, removePlant } = useGardenPlants();
-  const { isPremium } = useSubscription();
-  const guard = useRequirePremium();
+  const plan = usePlan();
 
   // Calcula status real (saúde, necessidades) com base no tempo decorrido
   const plants = useMemo(
@@ -26,10 +28,33 @@ export default function MyGardenPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data: anuncios } = useAnuncios();
 
-  const openAddModal = guard(() => setShowAddModal(true), "Adicionar plantas ao jardim");
+  const openAddModal = () => {
+    if (!plan.canAddPlant) {
+      toast.info("Você atingiu o limite de 3 plantas 😕", {
+        description: "Desbloqueie plantas ilimitadas com o plano PLUS.",
+        action: { label: "Ver planos", onClick: () => navigate("/planos") },
+      });
+      navigate("/planos");
+      return;
+    }
+    setShowAddModal(true);
+  };
 
   const handleAddPlant = (catalogPlant: CatalogPlant) => {
-    addPlant.mutate(catalogPlant);
+    addPlant.mutate(catalogPlant, {
+      onError: (err: any) => {
+        if (err?.message === "PLANT_LIMIT_REACHED") {
+          toast.info("Limite de 3 plantas atingido 🌱", {
+            description: "Assine o PLUS para plantas ilimitadas.",
+            action: { label: "Assinar", onClick: () => navigate("/planos") },
+          });
+          setShowAddModal(false);
+          navigate("/planos");
+        } else {
+          toast.error("Erro ao adicionar planta");
+        }
+      },
+    });
     setShowAddModal(false);
     setAddSearch("");
   };
