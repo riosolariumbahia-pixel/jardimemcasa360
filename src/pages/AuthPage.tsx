@@ -33,8 +33,9 @@ export default function AuthPage() {
       const { error } = await signIn(email, password);
       if (error) {
         setError(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
-        setLoading(false);
       }
+      // Always reset loading after login attempt (success or error)
+      setLoading(false);
       // Navigation handled by useEffect when user state updates
     } else {
       if (password.length < 6) {
@@ -48,8 +49,8 @@ export default function AuthPage() {
       } else {
         setSuccess("Conta criada! Verifique seu email para confirmar o cadastro.");
       }
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
