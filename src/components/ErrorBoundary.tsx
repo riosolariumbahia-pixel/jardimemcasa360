@@ -17,10 +17,32 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Log detalhado para identificar falhas em produção (Vercel/Android/etc)
     console.error("[ErrorBoundary] Uncaught error:", error);
     console.error("[ErrorBoundary] Component stack:", info.componentStack);
     this.setState({ info });
+
+    // Auto-recuperação para erros causados por tradutores do navegador
+    // (Google Translate) que quebram a reconciliação do React.
+    const msg = (error?.message || "").toLowerCase();
+    const isDomMismatch =
+      msg.includes("removechild") ||
+      msg.includes("insertbefore") ||
+      msg.includes("the node to be removed") ||
+      msg.includes("nó a ser removido") ||
+      msg.includes("not a child");
+
+    if (isDomMismatch && typeof window !== "undefined") {
+      try {
+        const KEY = "__mj360_dom_reload__";
+        const already = sessionStorage.getItem(KEY);
+        if (!already) {
+          sessionStorage.setItem(KEY, "1");
+          setTimeout(() => window.location.reload(), 50);
+        }
+      } catch {
+        /* noop */
+      }
+    }
   }
 
   handleReload = () => {
