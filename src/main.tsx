@@ -18,6 +18,31 @@ if (typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => {
     console.error("[unhandledrejection]", e.reason);
   });
+
+  // Patch defensivo contra o bug do Google Translate / extensões de tradução
+  // que removem/inserem nós de texto e fazem React quebrar com
+  // "Failed to execute 'removeChild' on 'Node'". Mantém o comportamento
+  // padrão e apenas evita o throw quando o nó já não pertence ao pai.
+  // Ref: facebook/react#11538
+  if (typeof Node !== "undefined") {
+    const originalRemoveChild = Node.prototype.removeChild;
+    Node.prototype.removeChild = function <T extends Node>(child: T): T {
+      if (child.parentNode !== this) {
+        console.warn("[DOM patch] removeChild: nó não é filho — ignorado");
+        return child;
+      }
+      return originalRemoveChild.call(this, child) as T;
+    } as typeof Node.prototype.removeChild;
+
+    const originalInsertBefore = Node.prototype.insertBefore;
+    Node.prototype.insertBefore = function <T extends Node>(newNode: T, refNode: Node | null): T {
+      if (refNode && refNode.parentNode !== this) {
+        console.warn("[DOM patch] insertBefore: ref não é filho — anexando ao final");
+        return this.appendChild(newNode) as T;
+      }
+      return originalInsertBefore.call(this, newNode, refNode) as T;
+    } as typeof Node.prototype.insertBefore;
+  }
 }
 
 // Validação de variáveis de ambiente VITE_ — evita tela branca silenciosa
